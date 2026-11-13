@@ -77,7 +77,7 @@ function heart3(d){return function(u,v){var a=u*PI,h=heart2(v*TAU),s=Math.pow(Ma
 /* ================= WebGL engine (one per canvas): static meshes + skinned meshes ================= */
 var VS1='attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec2 aT;uniform mat4 uVP,uM;uniform vec3 uTint;varying vec3 vN,vW,vR;varying vec4 vC;varying vec2 vT;varying float vF,vSh;'+
  'void main(){vR=aP;vF=0.;vSh=0.;vec4 w=uM*vec4(aP,1.);vW=w.xyz;vN=(uM*vec4(aN,0.)).xyz;vC=vec4(aC.rgb*uTint,aC.a);vT=aT;gl_Position=uVP*w;}';
-var VS3='attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec4 aB;attribute vec4 aW;uniform mat4 uVP,uR0;uniform vec4 uQ[32];uniform vec3 uTint;uniform float uSh,uFL;varying vec3 vN,vW,vR;varying vec4 vC;varying vec2 vT;varying float vF,vSh;'+
+var VS3='attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec4 aB;attribute vec4 aW;uniform mat4 uVP,uR0;uniform vec4 uQ[44];uniform vec3 uTint;uniform float uSh,uFL;varying vec3 vN,vW,vR;varying vec4 vC;varying vec2 vT;varying float vF,vSh;'+
  'void main(){int i0=int(aB.x+0.5),i1=int(aB.y+0.5),i2=int(aB.z+0.5),i3=int(aB.w+0.5);vec4 r0=uQ[i0*2],q=r0*aW.x,d=uQ[i0*2+1]*aW.x,rk;'+
  'rk=uQ[i1*2];float sg=dot(r0,rk)<0.?-aW.y:aW.y;q+=rk*sg;d+=uQ[i1*2+1]*sg;'+
  'rk=uQ[i2*2];sg=dot(r0,rk)<0.?-aW.z:aW.z;q+=rk*sg;d+=uQ[i2*2+1]*sg;'+
@@ -245,18 +245,22 @@ function ik2(H,F,a,b,hint){var d=sub(F,H),L=len3(d),dir=L>1e-6?scl(d,1/L):[0,-1,
   return {K:add(H,add(scl(dir,a*ca),scl(p,a*sa))),F:add(H,scl(dir,L))}}
 
 /* ================= cat builder ================= */
-var BONES=16;
+var BONES=22;
 function buildCat(o){
   var S=o.S,F=o.fat||1,Hf=o.head||1,Lf=o.leg||1,Tf=o.tail||1;
   function v(x,y,z){return [x*S,y*S,z*S]}function r(x){return x*S}
   var fx=.075*(1+(F-1)*0.6),bx=.085*(1+(F-1)*0.6);
-  var J={P0:v(0,.34,-.2),MID:v(0,.355,0),C0:v(0,.37,.2),N0:v(0,.45,.3),HC:v(0,.6+(Hf-1)*.07,.43+(Hf-1)*.05),
-    T1:v(0,.37,-.4),T2:v(0,.43,-.6),T3:v(0,.53,-.75),TE:v(0,.64,-.85),
-    FS:[v(-fx,.33,.24),v(fx,.33,.24)],FE:[v(-fx,.18,.2),v(fx,.18,.2)],FP:[v(-fx,.035,.245),v(fx,.035,.245)],
-    BH:[v(-bx,.32,-.24),v(bx,.32,-.24)],BK:[v(-bx,.19,-.13),v(bx,.19,-.13)],BP:[v(-bx,.035,-.22),v(bx,.035,-.22)]};
+  /* skeleton after the domestic cat: sacrum/pelvis, lumbar, thorax, cervical, skull; 5 caudal segments;
+     fore limb = humerus (elbow points back) + radius/ulna + metacarpus/digits (digitigrade);
+     hind limb = femur (stifle points forward) + tibia/fibula + long metatarsus (hock high and back) */
+  var J={P0:v(0,.34,-.2),L0:v(0,.355,-.02),T0:v(0,.37,.14),N0:v(0,.45,.3),HC:v(0,.6+(Hf-1)*.07,.43+(Hf-1)*.05),
+    TL:[v(0,.37,-.4),v(0,.41,-.52),v(0,.47,-.63),v(0,.54,-.73),v(0,.61,-.81),v(0,.68,-.87)],
+    FS:[v(-fx,.315,.265),v(fx,.315,.265)],FE:[v(-fx,.19,.215),v(fx,.19,.215)],FW:[v(-fx,.058,.245),v(fx,.058,.245)],FP:[v(-fx,.03,.296),v(fx,.03,.296)],
+    BH:[v(-bx,.31,-.22),v(bx,.31,-.22)],BK:[v(-bx,.2,-.125),v(bx,.2,-.125)],BA:[v(-bx,.1,-.27),v(bx,.1,-.27)],BP:[v(-bx,.03,-.215),v(bx,.03,-.215)]};
+  J.MID=J.L0;J.T1=J.TL[0];J.TE=J.TL[5];
   var hc=J.HC,hr=.155*Hf,D=new SDF();
   function hv(x,y,z){return add(hc,v(x*Hf,y*Hf,z*Hf))}
-  J.EB=[hv(-.083,.075,-.012),hv(.083,.075,-.012)];J.ET=[hv(-.136,.222,-.03),hv(.136,.222,-.03)];
+  J.HN=hv(0,-.075,-.075);J.EB=[hv(-.083,.075,-.012),hv(.083,.075,-.012)];J.ET=[hv(-.136,.222,-.03),hv(.136,.222,-.03)];
   D.add(sdRC(v(0,.345,-.23),v(0,.37,.22),r(.15*F),r(.132*F)));
   D.add(sdEL(v(0,.305,-.03),[r(.128*F),r(.12*F),r(.25)]),r(.07));
   D.add(sdEL(v(0,.36,.2),[r(.112*F),r(.13*F),r(.12)]),r(.06));
@@ -271,25 +275,25 @@ function buildCat(o){
     D.add(sdRC(b0,tp,r(.066*Hf),r(.012*Hf)),r(.045));
     D.sub(sdRC(hv(s*.096,.13,.034),hv(s*.13,.208,-.002),r(.03*Hf),r(.003*Hf)),r(.01));});
   [0,1].forEach(function(i){
-    D.add(sdRC(J.FS[i],J.FE[i],r(.05*Lf*Math.sqrt(F)),r(.039*Lf)),r(.05));D.add(sdRC(J.FE[i],J.FP[i],r(.039*Lf),r(.033*Lf)),r(.02));
-    D.add(sdEL(add(J.FP[i],v(0,.002,.018)),[r(.04*Lf),r(.031*Lf),r(.05*Lf)]),r(.022));
-    D.add(sdRC(J.BH[i],J.BK[i],r(.075*Lf*Math.sqrt(F)),r(.047*Lf)),r(.05));D.add(sdRC(J.BK[i],J.BP[i],r(.041*Lf),r(.033*Lf)),r(.02));
-    D.add(sdEL(add(J.BP[i],v(0,.002,.02)),[r(.04*Lf),r(.031*Lf),r(.054*Lf)]),r(.022));});
-  D.add(sdRC(J.T1,J.T2,r(.044*Tf),r(.039*Tf)),r(.04));D.add(sdRC(J.T2,J.T3,r(.039*Tf),r(.034*Tf)),r(.01));D.add(sdRC(J.T3,J.TE,r(.034*Tf),r(.027*Tf)),r(.01));
+    D.add(sdRC(J.FS[i],J.FE[i],r(.05*Lf*Math.sqrt(F)),r(.038*Lf)),r(.05));D.add(sdRC(J.FE[i],J.FW[i],r(.036*Lf),r(.03*Lf)),r(.02));
+    D.add(sdEL(mix(J.FW[i],J.FP[i],0.6).slice(0,3),[r(.039*Lf),r(.03*Lf),r(.05*Lf)]),r(.025));
+    D.add(sdRC(J.BH[i],J.BK[i],r(.078*Lf*Math.sqrt(F)),r(.05*Lf)),r(.05));D.add(sdRC(J.BK[i],J.BA[i],r(.042*Lf),r(.031*Lf)),r(.025));
+    D.add(sdRC(J.BA[i],J.BP[i],r(.031*Lf),r(.029*Lf)),r(.015));D.add(sdEL(add(J.BP[i],v(0,.003,.004)),[r(.039*Lf),r(.03*Lf),r(.052*Lf)]),r(.022));});
+  for(var ti=0;ti<5;ti++)D.add(sdRC(J.TL[ti],J.TL[ti+1],r((.045-.004*ti)*Tf),r((.041-.0035*ti)*Tf)),r(ti?0.012:0.04));
   var net=surfaceNets(D,r(o.cell||0.016));
   /* bones: segment for weighting, joint for skinning */
-  var bn=[
-    {a:J.P0,b:J.MID,R:.17,j:J.P0},{a:J.MID,b:J.N0,R:.17,j:J.MID},{a:J.N0,b:hv(0,.02,.06),R:.2,j:J.N0},
-    {a:J.T1,b:J.T2,R:.06,j:J.T1},{a:J.T2,b:J.T3,R:.05,j:J.T2},{a:J.T3,b:J.TE,R:.045,j:J.T3}];
-  [0,1].forEach(function(i){bn.push({a:J.FS[i],b:J.FE[i],R:.06,j:J.FS[i]},{a:J.FE[i],b:J.FP[i],R:.055,j:J.FE[i]});});
-  [0,1].forEach(function(i){bn.push({a:J.BH[i],b:J.BK[i],R:.085,j:J.BH[i]},{a:J.BK[i],b:J.BP[i],R:.055,j:J.BK[i]});});
-  [0,1].forEach(function(i){bn.push({a:mix(J.EB[i],J.ET[i],.3).slice(0,3),b:J.ET[i],R:.05*Hf,j:J.EB[i]});}); // 14 ear L, 15 ear R
-  // order: 0 pelvis 1 chest 2 head 3-5 tail 6 FLu 7 FLl 8 FRu 9 FRl 10 BLu 11 BLl 12 BRu 13 BRl
+  /* 22 bones: 0 pelvis 1 lumbar 2 thorax 3 neck 4 skull | 5-9 tail | 10-12 left fore (humerus, forearm, manus) 13-15 right fore | 16-18 left hind (femur, tibia, pes) 19-21 right hind */
+  var bn=[{a:J.P0,b:J.L0,R:.17},{a:J.L0,b:J.T0,R:.16},{a:J.T0,b:J.N0,R:.16},{a:J.N0,b:J.HN,R:.11},{a:J.HN,b:hc,R:.2*Hf+0.02}];
+  for(ti=0;ti<5;ti++)bn.push({a:J.TL[ti],b:J.TL[ti+1],R:.055-.004*ti});
+  [0,1].forEach(function(i){bn.push({a:J.FS[i],b:J.FE[i],R:.065},{a:J.FE[i],b:J.FW[i],R:.05},{a:J.FW[i],b:J.FP[i],R:.045});});
+  [0,1].forEach(function(i){bn.push({a:J.BH[i],b:J.BK[i],R:.09},{a:J.BK[i],b:J.BA[i],R:.055},{a:J.BA[i],b:J.BP[i],R:.045});});
+  function legSide(bi){return bi>=10&&bi<=12||bi>=16&&bi<=18?-1:bi>=13&&bi<=15||bi>=19?1:0}
   function segD(p,a,b){var ab=sub(b,a),t=Math.max(0,Math.min(1,dot(sub(p,a),ab)/dot(ab,ab)));return len3(sub(p,add(a,scl(ab,t))))}
   var m={P:net.P,N:net.N,I:net.I,C:[],B:[],W:[]};
   function wAt(p,outB,outW){var cand=[];
-    for(var bi=0;bi<bn.length;bi++){var B=bn[bi];if(bi>=6){var side=(bi>=6&&bi<=7)||(bi>=10&&bi<=11)||bi===14?-1:1;if(p[0]*side<-r(0.02))continue;}
-      if(bi<=1&&p[1]<r(0.16)&&Math.abs(p[0])>r(0.04))continue; // keep the lower legs off the torso bones
+    for(var bi=0;bi<bn.length;bi++){var B=bn[bi],side=legSide(bi);if(side&&p[0]*side<-r(0.02))continue;
+      if(bi<=2&&p[1]<r(0.16)&&Math.abs(p[0])>r(0.04))continue; // keep the lower legs off the torso bones
+      if(bi>=3&&bi<=4&&p[2]<r(0.2))continue;
       var d=segD(p,B.a,B.b)/r(B.R);cand.push([1/(1e-4+d*d*d*d),bi]);}
     /* 4 bones per vertex; subtracting the 5th weight makes each bone fade to exactly 0 before it drops out -> no seams */
     cand.sort(function(a,b){return b[0]-a[0]});var w5=cand.length>4?cand[4][0]:0,ws=[],tot=0;
@@ -349,7 +353,7 @@ function buildCat(o){
     tongue.top=tp;})();
   /* pink toe beans under the front paws, skinned with the same bone weights as the paw skin */
   var beanP=[];
-  [0,1].forEach(function(i){var c0=add(J.FP[i],v(0,.002,.018));
+  [0,1].forEach(function(i){var c0=mix(J.FW[i],J.FP[i],0.6).slice(0,3);c0[2]+=r(0.004);
     [[0,-.012,.02,.016],[-.024,.02,.0095,.011],[-.009,.033,.0095,.011],[.009,.033,.0095,.011],[.024,.02,.0095,.011]].forEach(function(b){
       var h=D.hit([c0[0]+r(b[0]*Lf),c0[1],c0[2]+r(b[1]*Lf)],[0,-1,0],r(0.1));beanP.push(h.p);
       beans[i].surf(ell(r(b[2]*Lf),r(.006*Lf),r(b[3]*Lf)),8,10,o.bean||H('#ff9db5'),M(T(add(h.p,scl(h.n,-r(.0015)))),RX(b[1]>0.015?-0.5:0)));});
@@ -374,7 +378,7 @@ function buildCat(o){
   if(o.extraHead)o.extraHead(hd,{onS:onS,hc:hc,r:r,hv:hv,frameZ:frameZ});
   var ch=new Mesh();if(o.extraChest)o.extraChest(ch,{D:D,J:J,r:r,v:v,frameZ:frameZ});
   return {S:S,J:J,mesh:m,head:hd,chest:ch,eyes:eyes,lip:lipM,pup:pup,eyeF:eyeF,eyeFi:eyeFi,tongue:tongue,beans:beans,fur:{n:o.shells||10,len:r(o.furLen||.02),den:(o.furDen||60)/S},eyeC:eyeC,happy:happy,wink:wink,mouth:mouth,mouthTop:mouthTop,D:D,
-    La:[len3(sub(J.FE[0],J.FS[0])),len3(sub(J.FP[0],J.FE[0]))],Lb:[len3(sub(J.BK[0],J.BH[0])),len3(sub(J.BP[0],J.BK[0]))]};
+    La:[len3(sub(J.FE[0],J.FS[0])),len3(sub(J.FW[0],J.FE[0])),len3(sub(J.FP[0],J.FW[0]))],Lb:[len3(sub(J.BK[0],J.BH[0])),len3(sub(J.BA[0],J.BK[0])),len3(sub(J.BP[0],J.BA[0]))]};
 }
 
 /* ================= pose controller ================= */
@@ -390,9 +394,9 @@ var CP={
   memeLand:{py:.21,pz:-.2,pitch:-.8,cp:-.1,fz:0,fG:0,frel:[0,-.18,.08],bz:.06,bG:1,brel:[0,-.2,.05],tailUp:0.6},
   stretch:{py:.3,pz:-.2,pitch:.42,cp:.12,fz:.24,fG:1,frel:[0,-.2,.1],bz:0,bG:1,brel:[0,-.2,0],tailUp:0.6}
 };
-function catState(){var s={eye:['open','open'],pup:[0.7,1],eyeS:1,blep:0,earO:0,earF:0,mouth:0,hy:0,hp:0,tilt:0,blink:1,tailSw:0.4,tailCurl:0,sq:0,gAmp:0,gPh:0,ovL:null,ovR:null,ovLw:0,ovRw:0,tailT:0};var P=CP.sit;for(var k in P)s[k]=Array.isArray(P[k])?P[k].slice():P[k];return s}
+function catState(){var s={eye:['open','open'],pup:[0.7,1],eyeS:1,blep:0,earO:0,earF:0,mouth:0,hy:0,hp:0,tilt:0,blink:1,tailSw:0.4,tailCurl:0,sq:0,gAmp:0,gPh:0,ovL:null,ovR:null,ovLw:0,ovRw:0,tailT:0,feet:[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],footW:[0,0,0,0],scap:[0,0],flex:0,bob:null};var P=CP.sit;for(var k in P)s[k]=Array.isArray(P[k])?P[k].slice():P[k];return s}
 function toCP(st,P,k){for(var key in P){var v=P[key];if(Array.isArray(v)){for(var i=0;i<3;i++)st[key][i]+=(v[i]-st[key][i])*k}else st[key]+=(v-st[key])*k}}
-var GAIT=[0,0.5,0.5,0]; // FL FR BL BR (trot)
+var GAIT=[0.25,0.75,0,0.5]; // FL FR BL BR: lateral-sequence walk LH→LF→RH→RF, as cats walk
 /* rigid matrix -> unit dual quaternion (real xyzw, dual xyzw) */
 function dqOf(m,o,k){var a=m[0],b=m[5],c=m[10],tr=a+b+c,x,y,z,w,S;
   if(tr>0){S=Math.sqrt(tr+1)*2;w=0.25*S;x=(m[6]-m[9])/S;y=(m[8]-m[2])/S;z=(m[1]-m[4])/S;}
@@ -401,40 +405,48 @@ function dqOf(m,o,k){var a=m[0],b=m[5],c=m[10],tr=a+b+c,x,y,z,w,S;
   else{S=Math.sqrt(1+c-a-b)*2;w=(m[1]-m[4])/S;x=(m[8]+m[2])/S;y=(m[9]+m[6])/S;z=0.25*S;}
   var tx=m[12],ty=m[13],tz=m[14];o[k]=x;o[k+1]=y;o[k+2]=z;o[k+3]=w;
   o[k+4]=0.5*(tx*w+ty*z-tz*y);o[k+5]=0.5*(-tx*z+ty*w+tz*x);o[k+6]=0.5*(tx*y-ty*x+tz*w);o[k+7]=-0.5*(tx*x+ty*y+tz*z);}
-/* compute the 14 skinning matrices (cat-local, then M0) */
+/* anatomical pose: spine chain, 5-segment tail, 3-segment digitigrade legs solved by IK (distal segment first, then 2-bone IK) */
+function ng(p){return [-p[0],-p[1],-p[2]]}
 function poseCat(c,st,M0,t){
-  var S=c.S,J=c.J,q=st.sq,R0=M(M0,Sc(1+q*0.5,1-q,1+q*0.5));
-  var bob=st.gAmp*0.012*S*Math.abs(Math.sin(TAU*st.gPh*2));
-  var Wp=M(T(0,st.py*S+bob,st.pz*S),RX(st.pitch)),Sp=M(Wp,T(-J.P0[0],-J.P0[1],-J.P0[2]));
-  var br=0.012*Math.sin(t*2.1+S),Wc=M(Sp,T(J.MID),RX(st.cp+br)),Scb=M(Wc,T(-J.MID[0],-J.MID[1],-J.MID[2]));
-  var hy=Math.max(-0.8,Math.min(0.8,st.hy));
-  var Wh=M(Scb,T(J.N0),RX(-(st.pitch+st.cp)*0.92),RY(hy),RX(st.hp),RZ(st.tilt)),Sh=M(Wh,T(-J.N0[0],-J.N0[1],-J.N0[2]));
-  var tt=st.tailT,A=st.tailSw,cu=st.tailCurl;
-  var W1=M(Sp,T(J.T1),RX(st.tailUp*0.6),RY(Math.sin(tt)*A*0.6+cu)),S1=M(W1,T(-J.T1[0],-J.T1[1],-J.T1[2]));
-  var W2=M(S1,T(J.T2),RX(st.tailUp*0.4+0.1),RY(Math.sin(tt-0.8)*A*0.8+cu*1.2)),S2=M(W2,T(-J.T2[0],-J.T2[1],-J.T2[2]));
-  var W3=M(S2,T(J.T3),RX(st.tailUp*0.3+0.15),RY(Math.sin(tt-1.6)*A+cu*1.3)),S3=M(W3,T(-J.T3[0],-J.T3[1],-J.T3[2]));
-  var out=[Sp,Scb,Sh,S1,S2,S3],feet=[],Rc=rotOf(Scb),Rp=rotOf(Sp);
-  function leg(Hb,Kb,Pb,parentS,Rpar,ground,rel,G,gz,ph,hintL,ov,ovw,fwd){
-    var Hj=xf(parentS,Hb),a=len3(sub(Kb,Hb)),b=len3(sub(Pb,Kb));
-    var gt=[Hj[0]*0.97,Pb[1],Hj[2]+gz*S];
-    if(st.gAmp>0.001){var f=st.gPh+ph;gt[2]+=-0.5*0.2*S*st.gAmp*Math.cos(TAU*f);gt[1]+=0.06*S*st.gAmp*Math.max(0,Math.sin(TAU*f));}
-    var rt=add(Hj,rv(Rpar,scl(rel,S))),F=mix(rt,gt,G).slice(0,3);
-    if(ov&&ovw>0)F=mix(F,ov,ovw).slice(0,3);
-    var hint=rv(Rpar,hintL),k=ik2(Hj,F,a,b,hint);
-    var d0=rv(Rpar,sub(Kb,Hb)),d1=sub(k.K,Hj),Rs;
-    if(fwd){var fw=rv(Rpar,[0,0.25,1]);Rs=M(rotTo(fw,d1),rotTo(d0,fw));}else Rs=rotTo(d0,d1);
-    var Ru=M(Rs,Rpar),Wu=M(T(Hj),Ru),Su=M(Wu,T(-Hb[0],-Hb[1],-Hb[2]));
-    var Rl=M(rotTo(rv(Ru,sub(Pb,Kb)),sub(k.F,k.K)),Ru),Wl=M(T(k.K),Rl),Sl=M(Wl,T(-Kb[0],-Kb[1],-Kb[2]));
-    out.push(Su,Sl);feet.push(xf(Sl,Pb));}
-  leg(J.FS[0],J.FE[0],J.FP[0],Scb,Rc,1,st.frel,st.fG,st.fz,GAIT[0],[0,0.15,-1],st.ovL,st.ovLw,1);
-  leg(J.FS[1],J.FE[1],J.FP[1],Scb,Rc,1,st.frel,st.fG,st.fz,GAIT[1],[0,0.15,-1],st.ovR,st.ovRw,1);
-  leg(J.BH[0],J.BK[0],J.BP[0],Sp,Rp,1,st.brel,st.bG,st.bz,GAIT[2],[0,0.35,1],null,0);
-  leg(J.BH[1],J.BK[1],J.BP[1],Sp,Rp,1,st.brel,st.bG,st.bz,GAIT[3],[0,0.35,1],null,0);
-  [0,1].forEach(function(i){var s=i?1:-1,ph=(t*0.23+S*0.37+i*0.41)%1,tw=ph<0.07?Math.sin(ph/0.07*PI)*0.25:0,eb=J.EB[i];
-    out.push(Sh);});
-  var buf=new Float32Array(BONES*16),dq=new Float32Array(BONES*8);for(var i=0;i<BONES;i++){var w=M(R0,out[i]);for(var j=0;j<16;j++)buf[i*16+j]=w[j];dqOf(out[i],dq,i*8);}
-  return {bones:buf,dq:dq,head:M(R0,Sh),chest:M(R0,Scb),pelvis:M(R0,Sp),feet:feet,
-    headPos:xf(M(R0,Sh),J.HC),pawL:xf(R0,feet[0]),pawR:xf(R0,feet[1]),shoulderMid:xf(M(R0,Scb),mix(J.FS[0],J.FS[1],0.5).slice(0,3)),R0:R0,Scb:Scb};
+  var S=c.S,J=c.J,q=st.sq,R0=M(M0,Sc(1+q*0.5,1-q,1+q*0.5)),fl=st.flex||0;
+  var bob=st.bob!==null&&st.bob!==undefined?st.bob:st.gAmp*0.012*S*Math.abs(Math.sin(TAU*st.gPh*2));
+  var Sp=M(T(0,st.py*S+bob,st.pz*S),RX(st.pitch),T(ng(J.P0)));
+  var br=0.012*Math.sin(t*2.1+S);
+  var Sl=M(Sp,T(J.L0),RX(st.cp*0.5+fl*0.55),T(ng(J.L0)));
+  var St=M(Sl,T(J.T0),RX(st.cp*0.5+fl*0.45+br),T(ng(J.T0)));
+  var comp=-(st.pitch+st.cp+fl)*0.95,hy=Math.max(-0.85,Math.min(0.85,st.hy));
+  var Sn=M(St,T(J.N0),RX(comp*0.5),RY(hy*0.45),T(ng(J.N0)));
+  var Sh=M(Sn,T(J.HN),RX(comp*0.5),RY(hy*0.55),RX(st.hp),RZ(st.tilt),T(ng(J.HN)));
+  var out=[Sp,Sl,St,Sn,Sh],prev=Sp,tt=st.tailT,A=st.tailSw,cu=st.tailCurl;
+  for(var i=0;i<5;i++){var jt=J.TL[i];prev=M(prev,T(jt),RX(st.tailUp*(0.36-0.05*i)+0.035*i),RY(Math.sin(tt-i*0.55)*A*(0.42+0.18*i)+cu*(0.4+0.17*i)),T(ng(jt)));out.push(prev);}
+  var Rt=rotOf(St),Rp=rotOf(Sp),feet=[],FT=st.feet,FW=st.footW;
+  function leg(i){var front=i<2,s=i%2,A=front?J.FS[s]:J.BH[s],B=front?J.FE[s]:J.BK[s],Cc=front?J.FW[s]:J.BA[s],Dd=front?J.FP[s]:J.BP[s],
+      par=front?St:Sp,Rpar=front?Rt:Rp,Hj=xf(par,A);
+    if(front&&st.scap)Hj=add(Hj,rv(Rpar,[0,st.scap[s]*S,0]));
+    var a=len3(sub(B,A)),b=len3(sub(Cc,B)),cl=len3(sub(Dd,Cc)),rel=front?st.frel:st.brel,G=front?st.fG:st.bG,gz=front?st.fz:st.bz;
+    var gt=[Hj[0]*0.97,Dd[1],Hj[2]+gz*S+(Dd[2]-A[2])*0.6];
+    if(st.gAmp>0.001&&!(FW&&FW[i]>0.01)){var f=st.gPh+GAIT[i];gt[2]+=-0.1*S*st.gAmp*Math.cos(TAU*f);gt[1]+=0.06*S*st.gAmp*Math.max(0,Math.sin(TAU*f));}
+    var rt=add(Hj,rv(Rpar,scl(rel,S))),F=mix(rt,gt,G).slice(0,3),contact=G;
+    if(FT&&FW&&FW[i]>0){F=mix(F,FT[i],FW[i]).slice(0,3);var lifted=sm(0.006*S,0.05*S,FT[i][1]-Dd[1]);contact=contact*(1-FW[i])+FW[i]*(1-lifted);}
+    var ov=front?(s?st.ovR:st.ovL):null,ow=front?(s?st.ovRw:st.ovLw):0;if(ov&&ow>0){F=mix(F,ov,ow).slice(0,3);contact*=1-ow;}
+    /* distal segment: lies along its standing direction while weight-bearing; in the air the paw hangs and the toes flex */
+    var dRest=nrm(sub(Dd,Cc)),dAir=rv(Rpar,front?nrm([0,-0.97,0.24]):nrm([0,-0.8,0.6])),dd=nrm(mix(dAir,dRest,contact));
+    /* crouched or sitting (paw much closer to the hip than the limb is long): the hind metatarsus lies down, hock on the floor,
+       exactly as a sitting cat rests on its hocks; the fore paw stays digitigrade but its wrist bends forward */
+    var ratio=len3(sub(F,Hj))/(a+b+cl),flat=sm(0.78,0.5,ratio)*contact;
+    if(flat>0)dd=nrm(mix(dd,front?[0,-0.6,0.8]:nrm([0,-0.12,1]),front?flat*0.4:flat));
+    var W=sub(F,scl(dd,cl));
+    var hint=rv(Rpar,front?[0,0.1,-1]:[0,0.3,1]),k=ik2(Hj,W,a,b,hint);
+    var d0=rv(Rpar,sub(B,A)),d1=sub(k.K,Hj),Rs;
+    if(front){var fw=rv(Rpar,[0,0.25,1]);Rs=M(rotTo(fw,d1),rotTo(d0,fw));}else Rs=rotTo(d0,d1);
+    var R1=M(Rs,Rpar),S1=M(T(Hj),R1,T(ng(A)));
+    var R2=M(rotTo(rv(R1,sub(Cc,B)),sub(k.F,k.K)),R1),S2=M(T(k.K),R2,T(ng(B)));
+    var R3=M(rotTo(rv(R2,sub(Dd,Cc)),sub(F,k.F)),R2),S3=M(T(k.F),R3,T(ng(Cc)));
+    out.push(S1,S2,S3);feet.push(xf(S3,Dd));}
+  leg(0);leg(1);leg(2);leg(3);
+  var buf=new Float32Array(BONES*16),dq=new Float32Array(BONES*8);for(i=0;i<BONES;i++){var w=M(R0,out[i]);for(var j=0;j<16;j++)buf[i*16+j]=w[j];dqOf(out[i],dq,i*8);}
+  return {bones:buf,dq:dq,head:M(R0,Sh),chest:M(R0,St),pelvis:M(R0,Sp),feet:feet,feetW:feet.map(function(p){return xf(R0,p)}),
+    headPos:xf(M(R0,Sh),J.HC),pawL:xf(R0,feet[0]),pawR:xf(R0,feet[1]),shoulderMid:xf(M(R0,St),mix(J.FS[0],J.FS[1],0.5).slice(0,3)),R0:R0,Scb:St};
 }
 /* draw: skinned body + rigid head/chest parts + blinking eyes */
 function uploadCat(E,c){return {skin:E.uploadSkin(c.mesh),head:E.upload(c.head),chest:E.upload(c.chest),eyes:[E.upload(c.eyes[0]),E.upload(c.eyes[1])],happy:[E.upload(c.happy[0]),E.upload(c.happy[1])],wink:[E.upload(c.wink[0]),E.upload(c.wink[1])],mouth:c.mouth.map(function(q){return E.upload(q)}),lip:E.upload(c.lip),pup:[E.upload(c.pup[0]),E.upload(c.pup[1])],tongue:E.upload(c.tongue),beans:[E.uploadSkin(c.beans[0]),E.uploadSkin(c.beans[1])]}}
@@ -459,12 +471,12 @@ function drawCat(E,g,c,M0,st,t,tint){
 }
 /* solve pose heights so paws touch the ground with nearly straight legs */
 function fitPoses(c){
-  function shoulderY(P){var st=catState();for(var k in P)st[k]=Array.isArray(P[k])?P[k].slice():P[k];var Wp=M(T(0,st.py*c.S,st.pz*c.S),RX(st.pitch)),Sp=M(Wp,T(-c.J.P0[0],-c.J.P0[1],-c.J.P0[2])),Scb=M(Sp,T(c.J.MID),RX(st.cp),T(-c.J.MID[0],-c.J.MID[1],-c.J.MID[2]));return xf(Scb,c.J.FS[0])[1]}
-  var reach=(c.La[0]+c.La[1])*0.97+c.J.FP[0][1],lo=-1.2,hi=0.2,P={};for(var k in CP.sit)P[k]=CP.sit[k];
+  function shoulderY(P){var st=catState();for(var k in P)st[k]=Array.isArray(P[k])?P[k].slice():P[k];var J=c.J,S=c.S;
+    var Sp=M(T(0,st.py*S,st.pz*S),RX(st.pitch),T(ng(J.P0))),St=M(Sp,T(J.L0),RX(st.cp*0.5),T(ng(J.L0)),T(J.T0),RX(st.cp*0.5),T(ng(J.T0)));return xf(St,J.FS[0])[1]}
+  var reach=(c.La[0]+c.La[1])*0.96+c.J.FW[0][1],lo=-1.2,hi=0.2,P={};for(var k in CP.sit)P[k]=CP.sit[k];
   for(var i=0;i<30;i++){P.pitch=(lo+hi)/2;if(shoulderY(P)>reach)lo=P.pitch;else hi=P.pitch;}
   var o={};for(k in CP)o[k]=CP[k];o.sit=P;
-  // upright beg: put hips at a height the hind legs can reach (slightly bent knees), feet under the centre of mass
-  var bg={};for(k in CP.beg)bg[k]=CP.beg[k];var hipY=(c.Lb[0]+c.Lb[1])*0.88+c.J.BP[0][1];bg.py=hipY/c.S+0.02;o.beg=bg;
+  var bg={};for(k in CP.beg)bg[k]=CP.beg[k];var hipY=(c.Lb[0]+c.Lb[1])*0.86+c.J.BA[0][1];bg.py=hipY/c.S+0.02;o.beg=bg;
   var ml={},mm={};for(k in bg){ml[k]=Array.isArray(bg[k])?bg[k].slice():bg[k];mm[k]=Array.isArray(bg[k])?bg[k].slice():bg[k];}
   ml.pitch=-1.38;ml.bG=1;ml.tailUp=-0.15;mm.pitch=-1.42;mm.bG=0;mm.brel=[0,-.21,.05];mm.py=bg.py+0.005;mm.tailUp=0.15;o.memeLand=ml;o.meme=mm;
   return o;

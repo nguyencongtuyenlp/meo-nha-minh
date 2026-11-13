@@ -75,9 +75,44 @@ var RXH=7,RZH=6,WALLH=6.2,WX0=-3.2,WX1=0.2,WY0=2.1,WY1=5.0;
 var OBJ={food:[-5.5,0,2.4],water:[-5.5,0,3.85],litter:{c:[4.85,0,-4.3],hx:1.25,hz:0.95,h:0.55,sand:0.3},bed:{c:[-4.6,0,-3.65],R:1.2,r:0.36},
   post:[5.85,0,0.7],table:{c:[1.6,0,-4.0],hx:1.5,hz:0.9,h:1.55},box:{c:[4.3,0,3.75],hx:1.25,hz:1.0,h:1.0},rug:{c:[-0.2,0,0.9],rx:4.0,rz:2.8},
   lamp:[-6.2,0,-0.6],sill:[-1.5,WY0,-5.4],plant1:[6.2,0,5.15],plant2:[-6.2,0,-5.25]};
-var OBST=[[OBJ.bed.c,1.5],[OBJ.litter.c,1.55],[OBJ.post,0.62],[OBJ.box.c,1.6],[OBJ.food,0.62],[OBJ.water,0.62],[OBJ.lamp,0.5],[OBJ.plant1,0.6],[OBJ.plant2,0.6],
+var OBST_OLD=[[OBJ.bed.c,1.5],[OBJ.litter.c,1.55],[OBJ.post,0.62],[OBJ.box.c,1.6],[OBJ.food,0.62],[OBJ.water,0.62],[OBJ.lamp,0.5],[OBJ.plant1,0.6],[OBJ.plant2,0.6],
   [[OBJ.table.c[0]-1.35,0,OBJ.table.c[2]+0.75],0.25],[[OBJ.table.c[0]+1.35,0,OBJ.table.c[2]+0.75],0.25]];
 var CUP_HOME=[2.25,OBJ.table.h,-3.45];
+/* ---------- furniture as signed distance functions (metres in plan view; <0 = inside the solid).
+   Every solid has a height h: a body above h passes over it (table top, box lid), below it collides. ---------- */
+function sdCirc(x,z,c,r){return Math.hypot(x-c[0],z-c[2])-r}
+function sdRBox(x,z,c,hx,hz,r){var qx=Math.abs(x-c[0])-hx+r,qz=Math.abs(z-c[2])-hz+r;return Math.hypot(Math.max(qx,0),Math.max(qz,0))+Math.min(Math.max(qx,qz),0)-r}
+var TB=OBJ.table,SOLIDS=[
+  {f:function(x,z){return sdCirc(x,z,OBJ.bed.c,OBJ.bed.R+0.08)},h:0.5},
+  {f:function(x,z){var L=OBJ.litter;return sdRBox(x,z,L.c,L.hx,L.hz,0.12)},h:OBJ.litter.h},
+  {f:function(x,z){return sdCirc(x,z,OBJ.post,0.5)},h:3},
+  {f:function(x,z){var B=OBJ.box;return sdRBox(x,z,B.c,B.hx,B.hz,0.06)},h:OBJ.box.h},
+  {f:function(x,z){return Math.min(sdCirc(x,z,OBJ.food,0.42),sdCirc(x,z,OBJ.water,0.42))},h:0.25},
+  {f:function(x,z){return sdCirc(x,z,OBJ.lamp,0.42)},h:4},
+  {f:function(x,z){return Math.min(sdCirc(x,z,OBJ.plant1,0.5),sdCirc(x,z,OBJ.plant2,0.5))},h:2},
+  {f:function(x,z){var m=9;[[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(o){m=Math.min(m,sdCirc(x,z,[TB.c[0]+o[0]*(TB.hx-0.15),0,TB.c[2]+o[1]*(TB.hz-0.15)],0.12))});return m},h:TB.h}];
+/* distance to the nearest solid for a body at height y (walls included: the room is the inside of a box) */
+function sdWorld(x,z,y){var d=Math.min(RXH-Math.abs(x),RZH-Math.abs(z)),yy=y||0;for(var i=0;i<SOLIDS.length;i++)if(yy<SOLIDS[i].h-0.05)d=Math.min(d,SOLIDS[i].f(x,z));return d}
+function sdGrad(x,z,y){var e=0.01;return nrm2(sdWorld(x+e,z,y)-sdWorld(x-e,z,y),sdWorld(x,z+e,y)-sdWorld(x,z-e,y))}
+function nrm2(a,b){var l=Math.hypot(a,b)||1;return [a/l,b/l]}
+/* ---------- A* over a 0.2 m grid of the floor; cells closer to a solid than the cat's half-width are blocked ---------- */
+var NAV={h:0.2,nx:Math.round(2*RXH/0.2)+1,nz:Math.round(2*RZH/0.2)+1,free:null,rb:-1};
+function navBuild(rb){if(NAV.free&&Math.abs(NAV.rb-rb)<1e-3)return;NAV.rb=rb;NAV.free=new Uint8Array(NAV.nx*NAV.nz);
+  for(var j=0;j<NAV.nz;j++)for(var i=0;i<NAV.nx;i++)NAV.free[j*NAV.nx+i]=sdWorld(-RXH+i*NAV.h,-RZH+j*NAV.h,0)>rb?1:0;}
+function navCell(x,z){return [clamp(Math.round((x+RXH)/NAV.h),0,NAV.nx-1),clamp(Math.round((z+RZH)/NAV.h),0,NAV.nz-1)]}
+function navNearestFree(c){if(NAV.free[c[1]*NAV.nx+c[0]])return c;for(var r=1;r<30;r++)for(var dj=-r;dj<=r;dj++)for(var di=-r;di<=r;di++){if(Math.max(Math.abs(di),Math.abs(dj))!==r)continue;
+    var i=c[0]+di,j=c[1]+dj;if(i>=0&&j>=0&&i<NAV.nx&&j<NAV.nz&&NAV.free[j*NAV.nx+i])return [i,j];}return c}
+function segClear(a,b,rb){var L=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.ceil(L/0.08);for(var k=1;k<=n;k++){var u=k/n;if(sdWorld(lerp(a[0],b[0],u),lerp(a[1],b[1],u),0)<rb)return false}return true}
+function navPath(from,to,rb){navBuild(rb);var s=navNearestFree(navCell(from[0],from[1])),g=navNearestFree(navCell(to[0],to[1])),NX=NAV.nx,N=NX*NAV.nz,
+    gs=new Float32Array(N).fill(1e9),par=new Int32Array(N).fill(-1),closed=new Uint8Array(N),open=[],si=s[1]*NX+s[0],gi=g[1]*NX+g[0];
+  function hh(k){return Math.hypot(k%NX-g[0],(k/NX|0)-g[1])}
+  gs[si]=0;open.push([hh(si),si]);var it=0;
+  while(open.length&&it++<6000){var bi=0;for(var q=1;q<open.length;q++)if(open[q][0]<open[bi][0])bi=q;var cur=open[bi][1];open[bi]=open[open.length-1];open.pop();
+    if(closed[cur])continue;closed[cur]=1;if(cur===gi)break;var cx=cur%NX,cz=cur/NX|0;
+    for(var dz=-1;dz<=1;dz++)for(var dx=-1;dx<=1;dx++){if(!dx&&!dz)continue;var nx=cx+dx,nz=cz+dz;if(nx<0||nz<0||nx>=NX||nz>=NAV.nz)continue;var nk=nz*NX+nx;
+      if(!NAV.free[nk]||closed[nk])continue;if(dx&&dz&&(!NAV.free[cz*NX+nx]||!NAV.free[nz*NX+cx]))continue;
+      var ng=gs[cur]+(dx&&dz?1.4142:1);if(ng<gs[nk]){gs[nk]=ng;par[nk]=cur;open.push([ng+hh(nk),nk]);}}}
+  if(par[gi]<0&&gi!==si)return null;var pts=[],k=gi;while(k>=0){pts.push([-RXH+(k%NX)*NAV.h,-RZH+(k/NX|0)*NAV.h]);k=par[k];}pts.reverse();pts.push(to);return pts}
 
 /* ---------- textures ---------- */
 function canvas(n){var c=document.createElement('canvas');c.width=c.height=n;return c}
@@ -208,7 +243,7 @@ function envAt(h){
 }
 function isNight(){return ENV.day<0.3}
 function sunPatch(){if(ENV.day<0.55)return null;var L=ENV.L,W=[(WX0+WX1)/2,(WY0+WY1)/2,-RZH],t=W[1]/L[1],p=[W[0]-L[0]*t,0,W[2]-L[2]*t];
-  if(p[0]<-RXH+0.8||p[0]>RXH-0.8||p[2]<-RZH+0.8||p[2]>RZH-0.8)return null;for(var i=0;i<OBST.length;i++)if(d2(p[0],p[2],OBST[i][0][0],OBST[i][0][2])<OBST[i][1]+0.3)return null;return p}
+  if(p[0]<-RXH+0.8||p[0]>RXH-0.8||p[2]<-RZH+0.8||p[2]>RZH-0.8)return null;if(sdWorld(p[0],p[2],0)<0.3)return null;return p}
 
 /* ======================= camera & picking ======================= */
 var cam={yaw:-0.6,pitch:0.7,dist:11,tgt:[0,1.1,0.4],yawT:-0.6,pitchT:0.7,distT:11,follow:true,eye:[0,0,0],VP:I4(),iVP:I4(),V:I4()};
@@ -241,14 +276,14 @@ function catHead(){return cat.r?cat.r.headPos:[cat.x,cat.y+0.6*SC,cat.z]}
 
 /* mesh loading: worker + IndexedDB cache */
 var worker=null,wq={},wid=0;
-try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=13');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
+try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=18');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
   worker.onerror=function(){worker=null;for(var k in wq){var q=wq[k];delete wq[k];q.fallback()}}}}catch(e){worker=null}
 function buildCatAsync(coat,k){return new Promise(function(res,rej){function local(){setTimeout(function(){try{res(window.buildPacked(coat,k))}catch(e){rej(e)}},30)}
   if(worker){var id=++wid;wq[id]={res:res,rej:rej,fallback:local};worker.postMessage({id:id,coat:coat,k:k});}else local();})}
 var dbp=null;function db(){if(dbp)return dbp;dbp=new Promise(function(res){try{var r=indexedDB.open('meo-nha-mesh',1);r.onupgradeneeded=function(){r.result.createObjectStore('m')};r.onsuccess=function(){res(r.result)};r.onerror=function(){res(null)}}catch(e){res(null)}});return dbp}
 function idbGet(k){return db().then(function(d){return d?new Promise(function(res){try{var q=d.transaction('m').objectStore('m').get(k);q.onsuccess=function(){res(q.result||null)};q.onerror=function(){res(null)}}catch(e){res(null)}}):null})}
 function idbPut(k,v){db().then(function(d){if(d)try{d.transaction('m','readwrite').objectStore('m').put(v,k)}catch(e){}})}
-var MESHV='m5';
+var MESHV='m7';
 function getCat(coat,k){var key=MESHV+'-'+coat+'-'+k;return idbGet(key).then(function(v){return v||buildCatAsync(coat,k).then(function(c){idbPut(key,c);return c})})}
 function growG(){return clamp((Date.now()-SV.born)/(SV.grow*864e5),0,1)}
 function stageOf(g){return Math.min(window.CAT_STAGES-1,Math.floor(g*(window.CAT_STAGES-1)+1e-6))}
@@ -373,20 +408,27 @@ function runScript(dt,t){var S=cat.script;if(!S)return false;var s=S.steps[S.i];
   if(s.dur&&!s.go&&!s.face&&!s.jump&&el>=s.dur)done=true;
   if(done){if(s.end)s.end(s);S.i++;}
   return true}
-function steer(dir,tg){var dx=dir[0],dz=dir[1];for(var i=0;i<OBST.length;i++){var o=OBST[i],c=o[0],r=o[1]+0.35*SC+0.15;if(d2(tg[0],tg[1],c[0],c[2])<r+0.1)continue;
-    var vx=cat.x-c[0],vz=cat.z-c[2],dd=Math.hypot(vx,vz);if(dd>r+1.2||dd<1e-4)continue;var toward=-(vx*dx+vz*dz)/dd;if(toward<-0.2&&dd>r)continue;
-    var push=clamp((r+1.2-dd)/1.2,0,1),side=(dx*vz-dz*vx)>0?1:-1;dx+=(-vz/dd*side)*push*1.6+(vx/dd)*push*(dd<r?1.5:0.4);dz+=(vx/dd*side)*push*1.6+(vz/dd)*push*(dd<r?1.5:0.4);}
-  var l=Math.hypot(dx,dz)||1;return [dx/l,dz/l]}
-function clampRoom(){cat.x=clamp(cat.x,-RXH+0.45,RXH-0.45);cat.z=clamp(cat.z,-RZH+0.45,RZH-0.45);}
 var GRAV=24;
-/* keep the cat's body out of furniture and walls (circle-vs-circle push-out) */
-function collideCat(){if(cat.y>0.25)return;for(var i=0;i<OBST.length;i++){var o=OBST[i],c=o[0],rr=o[1]*0.82+0.22*SC,dx=cat.x-c[0],dz=cat.z-c[2],d=Math.hypot(dx,dz);
-    if(d<rr&&d>1e-4){cat.x=c[0]+dx/d*rr;cat.z=c[2]+dz/d*rr;}}clampRoom();}
+/* the cat's body is a capsule along its spine (rump → chest → head) of half-width rb; every sphere of it is pushed
+   out of the solids along the SDF gradient (exact for circles and rounded boxes), a few Gauss-Seidel passes */
+function catRB(){return 0.15*SC+0.03}
+function collideCat(){var rb=catRB(),f=[Math.sin(cat.yaw),Math.cos(cat.yaw)],sp=[0.42*SC,0.18*SC,-0.05*SC,-0.26*SC];
+  for(var it=0;it<4;it++)for(var k=0;k<sp.length;k++){var px=cat.x+f[0]*sp[k],pz=cat.z+f[1]*sp[k],r=k===0?rb*0.75:rb,d=sdWorld(px,pz,cat.y);
+    if(d<r){var g=sdGrad(px,pz,cat.y);cat.x+=g[0]*(r-d);cat.z+=g[1]*(r-d);var vn=f[0]*g[0]+f[1]*g[1];if(vn<0)cat.v*=1+vn*0.6;}}
+  clampRoom();}
+function clampRoom(){cat.x=clamp(cat.x,-RXH+0.3,RXH-0.3);cat.z=clamp(cat.z,-RZH+0.3,RZH-0.3);}
+/* path following: A* waypoints, string-pulled to the farthest one in clear line of sight */
+function pathDir(s,tg){var rb=catRB()+0.04,tn=now();
+  if(cat.y>0.25)return null;
+  if(!s._path||tn-s._pt>0.6||Math.hypot(tg[0]-s._pg[0],tg[1]-s._pg[1])>0.3){s._path=navPath([cat.x,cat.z],tg,rb);s._pt=tn;s._pg=tg.slice();s._pi=0;}
+  var P=s._path;if(!P)return null;var me=[cat.x,cat.z],best=null;
+  for(var i=P.length-1;i>=s._pi;i--)if(segClear(me,P[i],rb*0.92)){best=P[i];s._pi=i;break}
+  if(!best)best=P[Math.min(s._pi+1,P.length-1)];var dx=best[0]-me[0],dz=best[1]-me[1],l=Math.hypot(dx,dz);if(l<1e-3)return null;return [dx/l,dz/l]}
 /* walk toward a point like a real animal: accelerate, brake before arriving, turn with a radius that grows with speed */
 function doGo(s,dt){var tg=typeof s.go==='function'?s.go():s.go;if(!tg)return true;if(!s.direct)tg=[clamp(tg[0],-RXH+0.55,RXH-0.55),clamp(tg[1],-RZH+0.55,RZH-0.55)];
   var tol=s.tol||0.12,dx=tg[0]-cat.x,dz=tg[1]-cat.z,d=Math.hypot(dx,dz);if(d<tol){return true}
-  var tn=now();if(s._sd===undefined||d<s._sd-0.08){s._sd=d;s._st=tn}else if(tn-s._st>1.5)return true;
-  var vmax=s.speed?s.speed():WALK(),acc=4.5*SC+3,dec=7*SC+4,vStop=Math.sqrt(2*dec*Math.max(0,d-tol*0.5))+0.12,dir=[dx/d,dz/d];if(!s.direct)dir=steer(dir,tg);
+  var tn=now();if(s._lp===undefined||Math.hypot(cat.x-s._lp[0],cat.z-s._lp[1])>0.12){s._lp=[cat.x,cat.z];s._st=tn}else if(tn-s._st>1.5)return true; // give up only when truly stuck (a detour may first lead away)
+  var vmax=s.speed?s.speed():WALK(),acc=4.5*SC+3,dec=7*SC+4,vStop=Math.sqrt(2*dec*Math.max(0,d-tol*0.5))+0.12,dir=[dx/d,dz/d];if(!s.direct){var pd=pathDir(s,tg);if(pd)dir=pd;}
   var want=Math.atan2(dir[0],dir[1]),dd=angD(cat.yaw,want),wmax=2.4+5.5/(1+cat.v*1.4);cat.yaw+=clamp(dd,-wmax*dt,wmax*dt);
   var face=Math.max(0,Math.cos(dd)),vd=Math.min(vmax,vStop)*(0.12+0.88*face*face);cat.v+=clamp(vd-cat.v,-dec*dt,acc*dt);
   var stp=Math.min(cat.v*dt,d+0.05);cat.x+=Math.sin(cat.yaw)*stp;cat.z+=Math.cos(cat.yaw)*stp;cat.spd=cat.v;cat.moved=true;if(!s.direct)collideCat();
@@ -399,9 +441,39 @@ function doJump(s,t){var j=s.jump;if(!s._j){var to=typeof j.to==='function'?j.to
   var J=s._j,e=t-J.t0;if(J.yaw!==undefined)cat.yaw=angLerp(cat.yaw,J.yaw,0.25);if(e<J.prep){cat.pose='crouch';cat.prate=0.002;cat.st.sq=0.12*Math.sin(Math.min(1,e/J.prep)*PI*0.5);return false}
   var ta=e-J.prep,a=clamp(ta/J.dur,0,1);cat.x=lerp(J.x0,J.to[0],a);cat.z=lerp(J.z0,J.to[2],a);cat.y=a<1?J.y0+J.vy*ta-0.5*GRAV*ta*ta:J.to[1];
   cat.poseObj=C.jumpPose(POSE,0.2+0.62*a);cat.prate=0.0004;
-  if(a>=1){cat.y=J.to[1];cat.landT=t;cat.poseObj=null;cat.pose='crouch';SND.thump();return true}return false}
+  if(a>=1){cat.y=J.to[1];cat.landT=t;if(cat.y<0.25)collideCat();cat.poseObj=null;cat.pose='crouch';SND.thump();return true}return false}
+/* ---------- footfalls: lateral-sequence walk (LH→LF→RH→RF, duty 0.62) and rotary gallop (duty 0.38) with spine flexion.
+   A paw in stance is pinned to its world point (no foot sliding); a swinging paw flies on a lifted arc to where its
+   home will be at mid-stance, predicted from the body's measured velocity. Turning on the spot steps the paws round. ---------- */
+var GAIT_WALK=[0.25,0.75,0,0.5],GAIT_RUN=[0.6,0.5,0,0.1],feet=null,feetW=0,prevP=null;
+function runK(spd){return clamp((spd-WALK())/(RUN()-WALK()),0,1)}
+function strideL(spd){return (0.42*SC+0.05)*(1+2.2*runK(spd))}
+function footHome(i){var J=CAT.J,s=i%2,A=i<2?J.FS[s]:J.BH[s],D=i<2?J.FP[s]:J.BP[s],st=cat.st,S=CAT.S,
+    lx=A[0]*0.97,lz=A[2]+st.pz*S-J.P0[2]+(i<2?st.fz:st.bz)*S+(D[2]-A[2])*0.6,c=Math.cos(cat.yaw),sn=Math.sin(cat.yaw);
+  return [cat.x+c*lx+sn*lz,cat.y+D[1],cat.z-sn*lx+c*lz]}
+function updFeet(dt,t){var st=cat.st;if(!CAT)return;
+  var ok=!cat.poseObj&&(cat.pose==='stand'||cat.pose==='stalk')&&cat.hop<0.005,p=[cat.x,cat.y,cat.z],h=Math.max(dt,1e-3),
+    vel=prevP?[(p[0]-prevP[0])/h,0,(p[2]-prevP[2])/h]:[0,0,0];prevP=p;if(Math.hypot(vel[0],vel[2])>12)vel=[0,0,0];
+  if(!feet||feetW<0.02&&!ok)feet=[0,1,2,3].map(function(i){var q=footHome(i);return {p:q,from:q,sw:0,t0:0}});
+  feetW+=((ok?1:0)-feetW)*(1-Math.pow(ok?0.002:0.0002,dt));
+  var k=runK(cat.spd),G=k>0.35?GAIT_RUN:GAIT_WALK,duty=lerp(0.62,0.38,k),L=strideL(cat.spd),Tc=L/Math.max(cat.spd,0.05),S=CAT.S,walking=cat.spd>0.05&&ok;
+  st.flex+=((walking&&k>0.35?0.22*Math.sin(TAU*st.gPh):0)-st.flex)*(1-Math.pow(0.0005,dt));
+  var anySw=feet.some(function(f){return f.sw===2});
+  for(var i=0;i<4;i++){var F=feet[i],home=footHome(i),gy=home[1];
+    if(walking){var f=((st.gPh+G[i])%1+1)%1;
+      if(f<duty){if(F.sw){F.sw=0;F.p=[F.p[0],gy,F.p[2]];}}
+      else{var u=(f-duty)/(1-duty);if(F.sw!==1){F.sw=1;F.from=F.p.slice();}
+        var ahead=((1-u)*(1-duty)+duty*0.5)*Tc,to=[home[0]+vel[0]*ahead,gy,home[2]+vel[2]*ahead],e=u*u*(3-2*u);
+        F.p=[lerp(F.from[0],to[0],e),gy+Math.sin(PI*u)*(i<2?0.075:0.06)*S*(1+0.6*k),lerp(F.from[2],to[2],e)];}}
+    else{ /* standing: settle one paw at a time back under its shoulder / hip */
+      if(F.sw===1){F.sw=0;F.p=[F.p[0],gy,F.p[2]];}
+      if(F.sw===2){var u2=clamp((t-F.t0)/0.2,0,1),e2=u2*u2*(3-2*u2);F.p=[lerp(F.from[0],home[0],e2),gy+Math.sin(PI*u2)*0.04*S,lerp(F.from[2],home[2],e2)];if(u2>=1){F.sw=0;anySw=false;}}
+      else if(!anySw&&ok&&Math.hypot(F.p[0]-home[0],F.p[2]-home[2])>0.045*S){F.sw=2;F.t0=t;F.from=F.p.slice();anySw=true;}
+      else if(!F.sw)F.p[1]=gy;}
+    st.feet[i]=toLocal(F.p);st.footW[i]=feetW;}
+}
 function approach(p,d){var dx=cat.x-p[0],dz=cat.z-p[2],l=Math.hypot(dx,dz)||1;return [p[0]+dx/l*d,p[2]+dz/l*d]}
-function randFloor(){for(var i=0;i<30;i++){var x=rnd(-RXH+1,RXH-1),z=rnd(-RZH+1,RZH-1),ok=true;for(var j=0;j<OBST.length;j++)if(d2(x,z,OBST[j][0][0],OBST[j][0][2])<OBST[j][1]+0.5)ok=false;if(ok)return [x,z]}return [0,1]}
+function randFloor(){for(var i=0;i<40;i++){var x=rnd(-RXH+1,RXH-1),z=rnd(-RZH+1,RZH-1);if(sdWorld(x,z,0)>0.45*SC+0.3)return [x,z]}return [0,1]}
 function playerSpot(){var e=cam.eye;if(cam.follow){var dx=e[0]-cat.x,dz=e[2]-cat.z,q=Math.hypot(dx,dz)||1;return [clamp(cat.x+dx/q*1.6,-RXH+1.2,RXH-1.2),clamp(cat.z+dz/q*1.6,-RZH+1.2,RZH-1.2)]}var l=Math.hypot(e[0],e[2])||1;return [clamp(e[0]/l*3.6,-RXH+1.6,RXH-1.6),clamp(e[2]/l*3.6,-RZH+1.6,RZH-1.6)]}
 function moodEx(){var s=SV.stats;if(s.vui<20||s.an<15)return 'sad';return s.vui>70&&s.tt>40?'smile':'normal'}
 function mewNow(kind){ac();mew(lerp(980,560,G),kind);cat.meowT=now();}
@@ -513,7 +585,8 @@ function updateCat(dt,t){
   if(!cat.moved&&cat.v>0.01&&cat.y<0.3){cat.v=Math.max(0,cat.v-(8*SC+5)*dt);var sl=cat.v*dt;cat.x+=Math.sin(cat.yaw)*sl;cat.z+=Math.cos(cat.yaw)*sl;cat.spd=cat.v;collideCat();}else if(!cat.moved)cat.v=0;
   var st=cat.st,P=cat.poseObj||POSE[cat.pose]||POSE.sit;C.toCP(st,P,1-Math.pow(cat.prate,dt));if(!cat.poseObj)cat.prate=0.02;
   if(cat.tailUpO!==null&&cat.tailUpO!==undefined)st.tailUp+=(cat.tailUpO-st.tailUp)*(1-Math.pow(0.01,dt));
-  var moving=cat.spd>0.05;st.gAmp+=((moving?1:0)-st.gAmp)*(1-Math.pow(0.002,dt));if(moving)st.gPh+=cat.spd*dt/(0.42*SC+0.05);
+  var moving=cat.spd>0.05;st.gAmp+=((moving?1:0)-st.gAmp)*(1-Math.pow(0.002,dt));if(moving)st.gPh+=cat.spd*dt/strideL(cat.spd);
+  updFeet(dt,t);
   cat.roll+=(cat.rollT-cat.roll)*(1-Math.pow(0.05,dt));
   var lt=t-cat.landT;st.sq=lt<0.35?Math.sin(lt/0.35*PI)*0.16:st.sq*0.85;
   /* head */
@@ -581,7 +654,7 @@ function updWorld(dt,t){
       if(B.y<B.r){B.y=B.r;if(B.vy<-1.4){B.vy=-B.vy*0.45;SND.ball()}else B.vy=0;}
       var onF=B.y<=B.r+0.01;if(onF){var fr=Math.exp(-0.9*h);B.vx*=fr;B.vz*=fr;var sp=Math.hypot(B.vx,B.vz);if(sp<0.04){B.vx=0;B.vz=0}}
       if(B.x<-RXH+B.r||B.x>RXH-B.r){B.vx*=-0.6;B.x=clamp(B.x,-RXH+B.r,RXH-B.r);SND.ball()}if(B.z<-RZH+B.r||B.z>RZH-B.r){B.vz*=-0.6;B.z=clamp(B.z,-RZH+B.r,RZH-B.r);SND.ball()}
-      for(var i=0;i<OBST.length;i++){var o=OBST[i],dx=B.x-o[0][0],dz=B.z-o[0][2],dd=Math.hypot(dx,dz),rr=o[1]*0.8+B.r;if(dd<rr&&dd>1e-4){var nx=dx/dd,nz=dz/dd,vn=B.vx*nx+B.vz*nz;if(vn<0){B.vx-=1.55*vn*nx;B.vz-=1.55*vn*nz;}B.x=o[0][0]+nx*rr;B.z=o[0][2]+nz*rr;}}
+      var sd=sdWorld(B.x,B.z,B.y-B.r);if(sd<B.r){var gn=sdGrad(B.x,B.z,B.y-B.r),vn=B.vx*gn[0]+B.vz*gn[1];if(vn<0){B.vx-=1.6*vn*gn[0];B.vz-=1.6*vn*gn[1];}B.x+=gn[0]*(B.r-sd);B.z+=gn[1]*(B.r-sd);}
       /* the cat's body shoves the ball when it walks into it */
       if(catReady&&cat.y<0.3&&B.y<0.7){var f=fwd(),cx=cat.x+f[0]*0.12*SC,cz=cat.z+f[2]*0.12*SC,cr=0.3*SC+B.r,ex=B.x-cx,ez=B.z-cz,ed=Math.hypot(ex,ez);
         if(ed<cr&&ed>1e-4){var mx=ex/ed,mz=ez/ed,rv=(B.vx-f[0]*cat.v)*mx+(B.vz-f[2]*cat.v)*mz;if(rv<0){B.vx-=1.5*rv*mx;B.vz-=1.5*rv*mz;}B.x=cx+mx*cr;B.z=cz+mz*cr;}}}
@@ -719,5 +792,5 @@ SV=loadSave();
 if(SV){if(SV.q>=0)applyQ(SV.q);else applyQ(Q.lvl);SV._away=offline();setSound(SV.sound!==false);start(false);}else{applyQ(Q.lvl);onboard();}
 requestAnimationFrame(frame);
 /* test/debug handle */
-window.__meo={cam:cam,cat:cat,get SV(){return SV},setScript:setScript,B:{eat:bEat,sleep:bSleep,groom:bGroom,scratch:bScratch,litter:bLitter,window:bWindow,box:bBox,cup:bKnockCup,zoom:bZoomies,tail:bChaseTail,att:bAttention,rub:bRub,sun:bSun},onTool:function(id){onTool(TOOLS.filter(function(t){return t[0]===id})[0])},lure:lure,laser:laser,ball:ball,cup:cup,throwBall:throwBall};
+window.__meo={sdWorld:sdWorld,navPath:navPath,feet:function(){return feet},cam:cam,cat:cat,get SV(){return SV},setScript:setScript,B:{eat:bEat,sleep:bSleep,groom:bGroom,scratch:bScratch,litter:bLitter,window:bWindow,box:bBox,cup:bKnockCup,zoom:bZoomies,tail:bChaseTail,att:bAttention,rub:bRub,sun:bSun},onTool:function(id){onTool(TOOLS.filter(function(t){return t[0]===id})[0])},lure:lure,laser:laser,ball:ball,cup:cup,throwBall:throwBall};
 })();
