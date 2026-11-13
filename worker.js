@@ -1,5 +1,5 @@
 /* builds the cat mesh off the main thread so the phone never freezes while the kitten grows */
-importScripts('cat3d.js?v=9','coats.js?v=9');
+importScripts('cat3d.js?v=13','coats.js?v=13');
 self.onmessage=function(e){
   var q=e.data;
   try{var c=self.buildPacked(q.coat,q.k);self.postMessage({id:q.id,cat:c});}

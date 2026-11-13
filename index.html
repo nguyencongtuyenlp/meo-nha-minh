@@ -104,6 +104,8 @@ input[type=text]:focus{border-color:#ff8aa5}
 #loading.gone{opacity:0;pointer-events:none}
 #loading .paw{font-size:38px;animation:hop 1s ease-in-out infinite}
 @keyframes hop{50%{transform:translateY(-10px)}}
+.hf{position:fixed;z-index:7;pointer-events:none;font-size:20px;transform:translate(-50%,0);animation:hf .95s ease-out forwards}
+@keyframes hf{to{transform:translate(-50%,-70px) scale(1.35);opacity:0}}
 #blinkfx{position:fixed;inset:0;z-index:15;pointer-events:none;display:none}
 #blinkfx i{position:absolute;left:0;right:0;height:50%;background:#1d1418;transform:scaleY(0);transition:transform .35s ease-in-out}
 #blinkfx i:first-child{top:0;transform-origin:top}
@@ -190,9 +192,9 @@ input[type=text]:focus{border-color:#ff8aa5}
 <div id="rotate"><svg class="i"><use href="#i-phone"/></svg><div class="baloo" style="font-size:22px">Xoay ngang điện thoại nha</div><div style="color:#8a7280">Căn phòng của bé rộng lắm, màn ngang mới vừa đó 🐾</div></div>
 <div id="loading"><div class="paw">🐾</div><div id="loadMsg">Đang dọn phòng cho bé…</div></div>
 
-<script src="cat3d.js?v=9"></script>
-<script src="coats.js?v=9"></script>
-<script src="game.js?v=9"></script>
+<script src="cat3d.js?v=13"></script>
+<script src="coats.js?v=13"></script>
+<script src="game.js?v=13"></script>
 <script>
 if('serviceWorker' in navigator&&location.protocol!=='file:'){addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
 </script>
