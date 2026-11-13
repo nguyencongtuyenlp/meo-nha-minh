@@ -1,0 +1,17 @@
+{
+  "name": "Mèo Nhà Mình",
+  "short_name": "Mèo Nhà",
+  "description": "Nuôi một bé mèo 3D từ lúc còn nhỏ đến khi trưởng thành, học các tập tính thật của loài mèo.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#f6e6dc",
+  "theme_color": "#f6e6dc",
+  "lang": "vi",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

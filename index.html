@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Mèo Nhà Mình</title>
+<meta name="description" content="Nuôi một bé mèo 3D từ lúc còn nhỏ đến khi trưởng thành, học các tập tính thật của loài mèo.">
+<meta name="theme-color" content="#f6e6dc">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mèo Nhà">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800&display=swap&subset=vietnamese" rel="stylesheet">
+<style>
+:root{--ink:#4a3540;--ink2:#8a7280;--pink:#ff7a9a;--glass:rgba(255,255,255,.86);--glass2:rgba(255,255,255,.7);--line:rgba(74,53,64,.1);
+  --sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#f3e3d6;overscroll-behavior:none}
+body{font-family:Nunito,system-ui,-apple-system,sans-serif;color:var(--ink);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;position:fixed;inset:0}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation}
+.baloo{font-family:'Baloo 2',Nunito,sans-serif}
+#bg{position:fixed;inset:0;transition:background 1.2s}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.glass{background:var(--glass);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 6px 18px -8px rgba(74,53,64,.35)}
+.ib{width:40px;height:40px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center}
+.ib:active{transform:scale(.92)}
+.ib.off{opacity:.45}
+
+/* top-left */
+#tl{position:fixed;left:calc(10px + var(--sl));top:calc(8px + var(--st));display:flex;gap:6px;align-items:center;z-index:5}
+#chip{height:40px;border-radius:12px;padding:0 12px;display:flex;flex-direction:column;justify-content:center;line-height:1.1;min-width:120px}
+#chip b{font-family:'Baloo 2';font-size:16px;font-weight:800}
+#chip small{font-size:11px;font-weight:800;color:var(--ink2)}
+/* top-right time */
+#tr{position:fixed;right:calc(10px + var(--sr));top:calc(8px + var(--st));z-index:5;display:flex;align-items:center;gap:6px;height:40px;border-radius:12px;padding:0 10px}
+#tr input{width:150px;accent-color:#ff9a6a}
+#clock{font-family:'Baloo 2';font-weight:800;font-size:15px;min-width:44px;text-align:right}
+#live{font-size:11px;font-weight:800;color:var(--ink2);padding:3px 7px;border-radius:8px;background:rgba(74,53,64,.07)}
+#live.on{color:#fff;background:#ff8f6b}
+/* stats */
+#stats{position:fixed;left:calc(10px + var(--sl));top:calc(56px + var(--st));z-index:4;border-radius:14px;padding:8px 9px;display:grid;gap:5px;width:132px}
+.st{display:grid;grid-template-columns:18px 1fr;align-items:center;gap:6px;font-size:11px;font-weight:800}
+.st .bar{height:7px;border-radius:9px;background:rgba(74,53,64,.1);overflow:hidden}
+.st .bar i{display:block;height:100%;border-radius:9px;background:#7fd3a8;transition:width .5s,background .5s}
+.st span{font-size:13px;line-height:1;text-align:center}
+.st .lbl{grid-column:2;margin-top:-3px;color:var(--ink2);font-size:10px;display:flex;justify-content:space-between}
+/* toolbar */
+#tb{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(8px + var(--sb));z-index:6;display:flex;gap:4px;padding:5px;border-radius:16px;max-width:calc(100% - 20px - var(--sl) - var(--sr));overflow-x:auto;scrollbar-width:none}
+#tb::-webkit-scrollbar{display:none}
+.tool{flex:0 0 auto;width:54px;height:50px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10px;font-weight:800;color:var(--ink)}
+.tool svg{width:21px;height:21px}
+.tool.on{background:#ffe3ea;color:#e2476f;box-shadow:inset 0 0 0 2px #ffb3c4}
+.tool:active{transform:scale(.93)}
+.tool .dot{position:absolute;margin:-26px 0 0 26px;width:8px;height:8px;border-radius:50%;background:#ff5a7a;display:none}
+.tool.need .dot{display:block}
+#hint{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(66px + var(--sb));z-index:6;background:rgba(40,30,36,.72);color:#fff;font-size:12.5px;font-weight:700;padding:6px 14px;border-radius:999px;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;transition:opacity .4s;pointer-events:none}
+#hint.hide{opacity:0}
+/* bubbles over the cat */
+#bubble{position:fixed;left:0;top:0;z-index:3;pointer-events:none;font-size:22px;padding:4px 9px;border-radius:16px;background:#fff;box-shadow:0 6px 16px -6px rgba(74,53,64,.4);opacity:0;transition:opacity .3s;will-change:transform}
+#bubble.on{opacity:1}
+#bubble::after{content:"";position:absolute;left:50%;bottom:-6px;width:12px;height:12px;margin-left:-6px;background:#fff;transform:rotate(45deg);border-radius:2px}
+/* toast */
+#toast{position:fixed;left:50%;top:calc(10px + var(--st));transform:translate(-50%,-150%);z-index:20;background:#4a3540;color:#fff;font-weight:700;font-size:13.5px;padding:9px 16px;border-radius:14px;max-width:min(560px,80vw);text-align:center;transition:transform .35s;line-height:1.35}
+#toast.on{transform:translate(-50%,0)}
+#toast.dex{background:linear-gradient(135deg,#ff8aa5,#ffa77f);cursor:pointer;pointer-events:auto}
+/* modals */
+.modal{position:fixed;inset:0;z-index:30;background:rgba(40,28,36,.45);display:flex;align-items:center;justify-content:center;padding:calc(10px + var(--st)) calc(14px + var(--sr)) calc(10px + var(--sb)) calc(14px + var(--sl))}
+.modal[hidden]{display:none}
+.card{background:#fffaf6;border-radius:22px;box-shadow:0 20px 50px -20px rgba(0,0,0,.5);max-height:100%;overflow:auto;-webkit-overflow-scrolling:touch;width:min(640px,100%);padding:16px 18px}
+.card h2{font-family:'Baloo 2';font-size:22px;line-height:1.1}
+.card p.sub{color:var(--ink2);font-weight:700;font-size:13px;margin:2px 0 10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:0 18px;border-radius:999px;font-weight:800;font-size:15px;color:#fff;background:linear-gradient(135deg,#ff8aa5,#ff9f6e);box-shadow:0 8px 18px -8px #ff7a9a}
+.btn.ghost{background:#fff;color:var(--ink);box-shadow:0 4px 12px -6px rgba(74,53,64,.4)}
+.btn:active{transform:scale(.96)}
+.coats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:8px 0 12px}
+.coat{border-radius:16px;padding:10px;background:#fff;box-shadow:0 4px 14px -8px rgba(74,53,64,.5);text-align:center;font-weight:800;font-size:13px;border:2px solid transparent}
+.coat.on{border-color:#ff8aa5;background:#fff3f5}
+.coat .sw{height:46px;border-radius:12px;margin-bottom:6px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+input[type=text]{font:inherit;font-weight:800;font-size:16px;color:var(--ink);background:#fff;border:2px solid #ffd3dd;border-radius:12px;padding:9px 12px;outline:none;flex:1;min-width:160px}
+input[type=text]:focus{border-color:#ff8aa5}
+.seg{display:inline-flex;background:#f1e6e8;border-radius:12px;padding:3px}
+.seg button{padding:6px 12px;border-radius:9px;font-weight:800;font-size:13px}
+.seg button.on{background:#fff;box-shadow:0 2px 8px -4px rgba(0,0,0,.3)}
+.dexgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:8px}
+.dx{background:#fff;border-radius:14px;padding:9px 11px;box-shadow:0 3px 10px -7px rgba(74,53,64,.5)}
+.dx b{display:block;font-family:'Baloo 2';font-size:15px;line-height:1.15}
+.dx p{font-size:12px;font-weight:600;color:var(--ink2);line-height:1.35;margin-top:3px}
+.dx.lock{opacity:.55}
+.dx.lock p{font-style:italic}
+.dx.new{box-shadow:0 0 0 2px #ff8aa5}
+#photoImg{width:100%;border-radius:14px;display:block;margin:8px 0}
+#rotate{position:fixed;inset:0;z-index:50;background:#f6e6dc;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:30px;font-weight:800}
+#rotate svg{width:84px;height:84px;stroke:#ff7a9a;animation:rot 2.4s ease-in-out infinite}
+@keyframes rot{0%,20%{transform:rotate(0)}50%,80%{transform:rotate(-90deg)}}
+@media (orientation:portrait) and (max-width:900px){#rotate{display:flex}}
+#loading{position:fixed;inset:0;z-index:40;background:#f6e6dc;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-weight:800;color:var(--ink2);transition:opacity .6s}
+#loading.gone{opacity:0;pointer-events:none}
+#loading .paw{font-size:38px;animation:hop 1s ease-in-out infinite}
+@keyframes hop{50%{transform:translateY(-10px)}}
+#blinkfx{position:fixed;inset:0;z-index:15;pointer-events:none;display:none}
+#blinkfx i{position:absolute;left:0;right:0;height:50%;background:#1d1418;transform:scaleY(0);transition:transform .35s ease-in-out}
+#blinkfx i:first-child{top:0;transform-origin:top}
+#blinkfx i:last-child{bottom:0;transform-origin:bottom}
+#blinkfx.on i{transform:scaleY(1)}
+@media (max-height:380px){#stats{width:118px;padding:6px 7px;gap:3px}.st .lbl{display:none}.tool{width:50px;height:46px}#hint{bottom:calc(60px + var(--sb))}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></symbol>
+  <symbol id="i-follow" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
+  <symbol id="i-pet" viewBox="0 0 24 24"><circle cx="12" cy="15.5" r="4"/><circle cx="6" cy="10" r="1.8"/><circle cx="9.5" cy="6.2" r="1.8"/><circle cx="14.5" cy="6.2" r="1.8"/><circle cx="18" cy="10" r="1.8"/></symbol>
+  <symbol id="i-food" viewBox="0 0 24 24"><path d="M3 12h18a9 6 0 0 1-18 0z"/><circle cx="9" cy="9.5" r="1.3"/><circle cx="12.5" cy="8.5" r="1.3"/><circle cx="15.5" cy="10" r="1.3"/></symbol>
+  <symbol id="i-water" viewBox="0 0 24 24"><path d="M12 3c3 4 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 3-7 6-11z"/><path d="M9 14.5a3 3 0 0 0 3 3"/></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24"><path d="M3 21L13 11"/><path d="M13 11c1.5-5 6-8 8-7s-2 6.5-8 7z"/><path d="M15 9l3-2"/></symbol>
+  <symbol id="i-laser" viewBox="0 0 24 24"><rect x="2.5" y="15.5" width="9" height="4" rx="1.5" transform="rotate(-40 7 17.5)"/><path d="M11 13l5-5" stroke-dasharray="1.5 2"/><circle cx="18.5" cy="5.5" r="2.2"/></symbol>
+  <symbol id="i-ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M5 9c5 1 9 5 10 10M8 4.8c3 2.2 5 6 5 10M19 8c-4 0-8 2-11 6"/></symbol>
+  <symbol id="i-clean" viewBox="0 0 24 24"><path d="M14 3l-3 7"/><path d="M6 11h11l-1.5 9h-8z"/><path d="M9 14v3M12 14v3M15 14v3"/></symbol>
+  <symbol id="i-brush" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="3"/><path d="M6 11v5M9 11v6M12 11v5M15 11v6M18 11v5"/></symbol>
+  <symbol id="i-call" viewBox="0 0 24 24"><path d="M4 5h16v10H10l-5 4v-4H4z"/><path d="M8.5 10h.01M12 10h.01M15.5 10h.01"/></symbol>
+  <symbol id="i-blink" viewBox="0 0 24 24"><path d="M3 11c3 4 15 4 18 0"/><path d="M6 13.5l-1.5 2.5M10 14.8l-.7 2.7M14 14.8l.7 2.7M18 13.5l1.5 2.5"/></symbol>
+  <symbol id="i-photo" viewBox="0 0 24 24"><path d="M4 8h3.5l2-2.5h5L16.5 8H20v11H4z"/><circle cx="12" cy="13.5" r="3.4"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/><path d="M9 7.5h6"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></symbol>
+</svg>
+
+<div id="bg"></div>
+<canvas id="gl" aria-label="Căn phòng 3D và bé mèo"></canvas>
+
+<div id="tl">
+  <button class="ib glass" id="bMenu" aria-label="Menu"><svg class="i"><use href="#i-menu"/></svg></button>
+  <button class="ib glass" id="bSound" aria-label="Âm thanh"><svg class="i"><use href="#i-sound"/></svg></button>
+  <button class="ib glass" id="bFollow" aria-label="Camera theo mèo"><svg class="i"><use href="#i-follow"/></svg></button>
+  <div class="glass" id="chip"><b id="cName">Mochi</b><small id="cAge">6 tuần · Mèo con</small></div>
+</div>
+<div class="glass" id="tr">
+  <svg class="i" style="color:#ff9f43"><use href="#i-sun"/></svg>
+  <input type="range" id="tSlider" min="0" max="24" step="0.05" value="12" aria-label="Giờ trong ngày">
+  <svg class="i" style="color:#6c7bd8"><use href="#i-moon"/></svg>
+  <span id="clock">12:00</span>
+  <button id="live" class="on">Giờ thật</button>
+</div>
+<div class="glass" id="stats"></div>
+<div id="bubble"></div>
+<div id="hint" class="hide"></div>
+<div class="glass" id="tb"></div>
+<div id="toast"></div>
+<div id="blinkfx"><i></i><i></i></div>
+
+<div class="modal" id="mOnboard" hidden><div class="card">
+  <h2>Đón một bé mèo về nhà 🐾</h2>
+  <p class="sub">Bé còn nhỏ xíu, mắt xanh, chân ngắn. Chăm bé mỗi ngày và bé sẽ lớn dần.</p>
+  <div class="coats" id="coats"></div>
+  <div class="row"><input type="text" id="nameIn" maxlength="14" value="Mochi" aria-label="Tên bé mèo"><button class="btn" id="bAdopt">Đón bé về</button></div>
+</div></div>
+
+<div class="modal" id="mDex" hidden><div class="card">
+  <div class="row" style="justify-content:space-between"><div><h2>Sổ tập tính</h2><p class="sub" id="dexCount"></p></div><button class="btn ghost" data-close>Đóng</button></div>
+  <div class="dexgrid" id="dexGrid"></div>
+</div></div>
+
+<div class="modal" id="mMenu" hidden><div class="card">
+  <div class="row" style="justify-content:space-between"><h2>Cài đặt</h2><button class="btn ghost" data-close>Đóng</button></div>
+  <p class="sub" style="margin-top:10px">Tên bé</p>
+  <div class="row"><input type="text" id="nameEdit" maxlength="14"></div>
+  <p class="sub" style="margin-top:12px">Tốc độ lớn (từ mèo con đến trưởng thành)</p>
+  <div class="seg" id="speedSeg"><button data-v="1">1 ngày</button><button data-v="7">7 ngày</button><button data-v="30">30 ngày</button></div>
+  <p class="sub" style="margin-top:12px">Đồ hoạ</p>
+  <div class="seg" id="qSeg"><button data-v="0">Tiết kiệm pin</button><button data-v="1">Cân bằng</button><button data-v="2">Đẹp nhất</button></div>
+  <p class="sub" style="margin-top:14px">Cách chơi: vuốt trên nền để xoay phòng, chụm hai ngón để phóng to. Chọn công cụ ở thanh dưới; kéo tay trên bé mèo để vuốt ve. Mỗi tập tính mới bé làm sẽ được ghi vào Sổ tập tính.</p>
+  <div class="row" style="margin-top:12px"><button class="btn ghost" id="bReset">Nuôi bé mới (xoá tiến trình)</button></div>
+</div></div>
+
+<div class="modal" id="mPhoto" hidden><div class="card" style="width:min(560px,100%)">
+  <div class="row" style="justify-content:space-between"><h2>Ảnh của bé 📸</h2><button class="btn ghost" data-close>Đóng</button></div>
+  <img id="photoImg" alt="Ảnh chụp bé mèo">
+  <div class="row"><button class="btn" id="bShare">Chia sẻ / Lưu</button><span class="sub" style="margin:0">Hoặc nhấn giữ ảnh để lưu</span></div>
+</div></div>
+
+<div id="rotate"><svg class="i"><use href="#i-phone"/></svg><div class="baloo" style="font-size:22px">Xoay ngang điện thoại nha</div><div style="color:#8a7280">Căn phòng của bé rộng lắm, màn ngang mới vừa đó 🐾</div></div>
+<div id="loading"><div class="paw">🐾</div><div id="loadMsg">Đang dọn phòng cho bé…</div></div>
+
+<script src="cat3d.js?v=9"></script>
+<script src="coats.js?v=9"></script>
+<script src="game.js?v=9"></script>
+<script>
+if('serviceWorker' in navigator&&location.protocol!=='file:'){addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
+</script>
+</body>
+</html>
