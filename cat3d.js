@@ -83,7 +83,7 @@ function heart3(d){return function(u,v){var a=u*PI,h=heart2(v*TAU),s=Math.pow(Ma
    backlit tips. When the device can take it, the frame goes through a post chain: SSAO, bloom, FXAA, vignette, grain. */
 var VS1='attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec2 aT;attribute vec2 aR;uniform mat4 uVP,uM;uniform vec3 uTint;varying vec3 vN,vW,vR,vTg;varying vec4 vC;varying vec2 vT,vM;varying float vF,vSh;'+
  'void main(){vR=aP;vF=0.;vSh=0.;vTg=vec3(0.);vM=aR;vec4 w=uM*vec4(aP,1.);vW=w.xyz;vN=(uM*vec4(aN,0.)).xyz;vC=vec4(aC.rgb*uTint,aC.a);vT=aT;gl_Position=uVP*w;}';
-var VS3='attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec4 aB;attribute vec4 aW;uniform mat4 uVP,uR0;uniform vec4 uQ[44];uniform vec3 uTint;uniform float uSh,uFL;varying vec3 vN,vW,vR,vTg;varying vec4 vC;varying vec2 vT,vM;varying float vF,vSh;'+
+var VS3='attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec4 aB;attribute vec4 aW;uniform mat4 uVP,uR0;uniform vec4 uQ[48];uniform vec3 uTint;uniform float uSh,uFL;varying vec3 vN,vW,vR,vTg;varying vec4 vC;varying vec2 vT,vM;varying float vF,vSh;'+
  'void main(){int i0=int(aB.x+0.5),i1=int(aB.y+0.5),i2=int(aB.z+0.5),i3=int(aB.w+0.5);vec4 r0=uQ[i0*2],q=r0*aW.x,d=uQ[i0*2+1]*aW.x,rk;'+
  'rk=uQ[i1*2];float sg=dot(r0,rk)<0.?-aW.y:aW.y;q+=rk*sg;d+=uQ[i1*2+1]*sg;'+
  'rk=uQ[i2*2];sg=dot(r0,rk)<0.?-aW.z:aW.z;q+=rk*sg;d+=uQ[i2*2+1]*sg;'+
@@ -369,7 +369,7 @@ function ik2(H,F,a,b,hint){var d=sub(F,H),L=len3(d),dir=L>1e-6?scl(d,1/L):[0,-1,
   return {K:add(H,add(scl(dir,a*ca),scl(p,a*sa))),F:add(H,scl(dir,L))}}
 
 /* ================= cat builder ================= */
-var BONES=22;
+var BONES=24;
 function buildCat(o){
   var S=o.S,F=o.fat||1,Hf=o.head||1,Lf=o.leg||1,Tf=o.tail||1,BL=o.body||1,TLf=o.tailL||1,EA=o.ear||1,LL=o.legL||1,LW=o.lash===undefined?1:o.lash;
   function v(x,y,z){return [x*S,y*S,z*S]}function r(x){return x*S}
@@ -409,7 +409,7 @@ function buildCat(o){
   
   [-1,1].forEach(function(s){D.add(sdEL(hv(s*.024*(1+RE*0.3),-.07-RE*0.004,.092+MZ),[r(.03*Hf*(1+RE*0.15)),r(.024*Hf*(1+RE*0.1)),r(.026*Hf*(1+RE*0.08))]),r(.022+RE*0.004));});
   [-1,1].forEach(function(s){var b0=hv(s*.083,.075,-.012),tp=mix(b0,hv(s*.136,.222,-.03),EA).slice(0,3);function ep(x,y,z){return mix(b0,hv(x,y,z),EA).slice(0,3)}
-    D.add(sdRC(b0,tp,r(.066*Hf*Math.sqrt(EA)),r(.012*Hf)),r(.045));
+    D.add(sdRC(b0,tp,r(.068*Hf*Math.sqrt(EA)),r(.007*Hf)),r(.04));
     D.sub(sdRC(ep(s*.096,.13,.034),ep(s*.13,.208,-.002),r(.03*Hf*Math.sqrt(EA)),r(.003*Hf)),r(.01));});
   [0,1].forEach(function(i){
     D.add(sdRC(J.FS[i],J.FE[i],r(.05*Lf*Math.sqrt(F)),r(.038*Lf)),r(.05));D.add(sdRC(J.FE[i],J.FW[i],r(.036*Lf),r(.03*Lf)),r(.02));
@@ -424,13 +424,16 @@ function buildCat(o){
   for(ti=0;ti<5;ti++)bn.push({a:J.TL[ti],b:J.TL[ti+1],R:.055-.004*ti});
   [0,1].forEach(function(i){bn.push({a:J.FS[i],b:J.FE[i],R:.065},{a:J.FE[i],b:J.FW[i],R:.05},{a:J.FW[i],b:J.FP[i],R:.045});});
   [0,1].forEach(function(i){bn.push({a:J.BH[i],b:J.BK[i],R:.09},{a:J.BK[i],b:J.BA[i],R:.055},{a:J.BA[i],b:J.BP[i],R:.045});});
-  function legSide(bi){return bi>=10&&bi<=12||bi>=16&&bi<=18?-1:bi>=13&&bi<=15||bi>=19?1:0}
+  /* 22, 23: ears, so they can swivel, twitch, prick up and flatten */
+  [0,1].forEach(function(i){bn.push({a:J.EB[i],b:J.ET[i],R:.045*Hf*Math.sqrt(EA)});});
+  function legSide(bi){return bi>=10&&bi<=12||bi>=16&&bi<=18?-1:bi>=13&&bi<=15||bi>=19&&bi<=21?1:0}
   function segD(p,a,b){var ab=sub(b,a),t=Math.max(0,Math.min(1,dot(sub(p,a),ab)/dot(ab,ab)));return len3(sub(p,add(a,scl(ab,t))))}
   var m={P:net.P,N:net.N,I:net.I,C:[],B:[],W:[]};
   function wAt(p,outB,outW){var cand=[];
     for(var bi=0;bi<bn.length;bi++){var B=bn[bi],side=legSide(bi);if(side&&p[0]*side<-r(0.02))continue;
       if(bi<=2&&p[1]<r(0.16)&&Math.abs(p[0])>r(0.04))continue; // keep the lower legs off the torso bones
       if(bi>=3&&bi<=4&&p[2]<r(0.2))continue;
+      if(bi>=22){var ei=bi-22;if(p[0]*(ei?1:-1)<r(0.02)||p[1]<J.EB[ei][1]-r(0.012*Hf))continue;}
       var d=segD(p,B.a,B.b)/r(B.R);cand.push([1/(1e-4+d*d*d*d),bi]);}
     /* 4 bones per vertex; subtracting the 5th weight makes each bone fade to exactly 0 before it drops out -> no seams */
     cand.sort(function(a,b){return b[0]-a[0]});var w5=cand.length>4?cand[4][0]:0,ws=[],tot=0;
@@ -537,7 +540,7 @@ var CP={
   memeLand:{py:.21,pz:-.2,pitch:-.8,cp:-.1,fz:0,fG:0,frel:[0,-.18,.08],bz:.06,bG:1,brel:[0,-.2,.05],tailUp:0.6},
   stretch:{py:.3,pz:-.2,pitch:.42,cp:.12,fz:.24,fG:1,frel:[0,-.2,.1],bz:0,bG:1,brel:[0,-.2,0],tailUp:0.6}
 };
-function catState(){var s={eye:['open','open'],pup:[0.7,1],eyeS:1,blep:0,earO:0,earF:0,mouth:0,hy:0,hp:0,tilt:0,blink:1,tailSw:0.4,tailCurl:0,sq:0,gAmp:0,gPh:0,ovL:null,ovR:null,ovLw:0,ovRw:0,tailT:0,feet:[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],footW:[0,0,0,0],scap:[0,0],flex:0,bob:null};var P=CP.sit;for(var k in P)s[k]=Array.isArray(P[k])?P[k].slice():P[k];return s}
+function catState(){var s={eye:['open','open'],pup:[0.7,1],eyeS:1,blep:0,earO:0,earF:0,earSw:[0,0],earTw:[0,0],mouth:0,hy:0,hp:0,tilt:0,blink:1,tailSw:0.4,tailCurl:0,sq:0,gAmp:0,gPh:0,ovL:null,ovR:null,ovLw:0,ovRw:0,tailT:0,feet:[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],footW:[0,0,0,0],scap:[0,0],flex:0,bob:null};var P=CP.sit;for(var k in P)s[k]=Array.isArray(P[k])?P[k].slice():P[k];return s}
 function toCP(st,P,k){for(var key in P){var v=P[key];if(Array.isArray(v)){for(var i=0;i<3;i++)st[key][i]+=(v[i]-st[key][i])*k}else st[key]+=(v-st[key])*k}
   if(P.lat===undefined)st.lat=(st.lat||0)*(1-k);if(P.ts===undefined)st.ts=(st.ts||0)*(1-k);if(P.bsp===undefined)st.bsp=(st.bsp||0)*(1-k);if(P.nk===undefined)st.nk=(st.nk===undefined?0.5:st.nk)+(0.5-(st.nk===undefined?0.5:st.nk))*k;if(P.nd===undefined)st.nd=(st.nd||0)*(1-k);if(P.twist===undefined)st.twist=(st.twist||0)*(1-k);}
 var GAIT=[0.25,0.75,0,0.5]; // FL FR BL BR: lateral-sequence walk LH→LF→RH→RF, as cats walk
@@ -592,6 +595,9 @@ function poseCat(c,st,M0,t){
     var R3=M(rotTo(rv(R2,sub(Dd,Cc)),sub(F,k.F)),R2),S3=M(T(k.F),R3,T(ng(Cc)));
     out.push(S1,S2,S3);feet.push(xf(S3,Dd));}
   leg(0);leg(1);leg(2);leg(3);
+  /* ears: swivel about the vertical, tip forward/back, fold outward (airplane ears), plus a quick twitch */
+  [0,1].forEach(function(i){var sg=i?1:-1,sw=(st.earSw?st.earSw[i]:0),tw=(st.earTw?st.earTw[i]:0);
+    out.push(M(Sh,T(J.EB[i]),RY(sg*(sw*0.9+tw*0.5)),RX(st.earF*1.5-tw*0.35),RZ(-sg*(st.earO*1.1+tw*0.25)),T(ng(J.EB[i]))));});
   var buf=new Float32Array(BONES*16),dq=new Float32Array(BONES*8);for(i=0;i<BONES;i++){var w=M(R0,out[i]);for(var j=0;j<16;j++)buf[i*16+j]=w[j];dqOf(out[i],dq,i*8);}
   return {bones:buf,dq:dq,head:M(R0,Sh),chest:M(R0,St),pelvis:M(R0,Sp),feet:feet,feetW:feet.map(function(p){return xf(R0,p)}),
     headPos:xf(M(R0,Sh),J.HC),pawL:xf(R0,feet[0]),pawR:xf(R0,feet[1]),shoulderMid:xf(M(R0,St),mix(J.FS[0],J.FS[1],0.5).slice(0,3)),R0:R0,Scb:St};
@@ -660,7 +666,7 @@ function tabbyColor(p,n,J,S,hc){
     c=mix(c,TD,K*sm(0.15,0.9,Math.cos(h[0]*85/Hf+e*8))*S1(0.06*Hf,h[1],0.03)*S1(-0.04,h[2],0.035)*(1-S1(0.09*Hf,Math.abs(h[0]),0.025)));
     c=mix(c,TD,K*S1(0.13*Hf,Math.abs(h[0]),0.025)*S1(0,h[2],0.035)*sm(0.15,0.85,Math.sin(h[1]*110/Hf+1+e*8))*(1-S1(0.03*Hf,h[1],0.025))*S1(-0.07*Hf,h[1],0.025));
     c=mix(c,TC,(1-S1(-0.035*Hf,h[1],0.03))*S1(0.05*Hf,h[2],0.035));
-    return mix(c,TPK,0.75*S1(0.075*Hf,Math.abs(h[0]),0.012)*S1(0.13*Hf,h[1],0.015)*S1(0.15,n[2],0.12));}
+    return mix(c,TPK,0.5*S1(0.075*Hf,Math.abs(h[0]),0.012)*S1(0.13*Hf,h[1],0.015)*S1(0.15,n[2],0.12));}
   if(z<-0.36&&y>0.26){var tz=-z;return mix(TO,TD,K*Math.max(S1(0.8,tz,0.04),sm(0.0,0.7,Math.sin(tz*36))));}
   c=TO;
   c=mix(c,TD,K*S1(0.3,y,0.04)*sm(0.15,0.8,Math.sin(z*40+Math.sin(x*22)*1.3+e*30)));

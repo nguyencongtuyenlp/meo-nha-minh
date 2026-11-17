@@ -289,14 +289,14 @@ function catHead(){return cat.r?cat.r.headPos:[cat.x,cat.y+0.6*SC,cat.z]}
 
 /* mesh loading: worker + IndexedDB cache */
 var worker=null,wq={},wid=0;
-try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=23');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
+try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=24');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
   worker.onerror=function(){worker=null;for(var k in wq){var q=wq[k];delete wq[k];q.fallback()}}}}catch(e){worker=null}
 function buildCatAsync(coat,k,sh){return new Promise(function(res,rej){function local(){setTimeout(function(){try{res(window.buildPacked(coat,k,sh))}catch(e){rej(e)}},30)}
   if(worker){var id=++wid;wq[id]={res:res,rej:rej,fallback:local};worker.postMessage({id:id,coat:coat,k:k,shape:sh});}else local();})}
 var dbp=null;function db(){if(dbp)return dbp;dbp=new Promise(function(res){try{var r=indexedDB.open('meo-nha-mesh',1);r.onupgradeneeded=function(){r.result.createObjectStore('m')};r.onsuccess=function(){res(r.result)};r.onerror=function(){res(null)}}catch(e){res(null)}});return dbp}
 function idbGet(k){return db().then(function(d){return d?new Promise(function(res){try{var q=d.transaction('m').objectStore('m').get(k);q.onsuccess=function(){res(q.result||null)};q.onerror=function(){res(null)}}catch(e){res(null)}}):null})}
 function idbPut(k,v){db().then(function(d){if(d)try{d.transaction('m','readwrite').objectStore('m').put(v,k)}catch(e){}})}
-var MESHV='m18';
+var MESHV='m21';
 function curShape(){return SV&&SV.shape?SV.shape:null}
 function getCat(coat,k,sh){if(sh===undefined)sh=curShape();var key=MESHV+'-'+coat+'-'+k+'-'+window.shapeKey(sh);return idbGet(key).then(function(v){return v||buildCatAsync(coat,k,sh).then(function(c){idbPut(key,c);return c})})}
 function growG(){return clamp((Date.now()-SV.born)/(SV.grow*864e5),0,1)}
@@ -647,6 +647,12 @@ function updateCat(dt,t){
   if(!pw){cat.ovL=cat.ovL&&st.ovLw>0.02?cat.ovL:null;cat.ovR=cat.ovR&&st.ovRw>0.02?cat.ovR:null;}
   /* face */
   var ex=cat.ex;if(cat.exHold&&t<cat.exHold)ex='meow';C.expr(st,EXB[ex]||'normal',dt);
+  /* living ears, after real kittens: each ear swivels on its own toward sounds, flicks back in a quick twitch now and then,
+     folds sideways (airplane ears) when annoyed and droops sideways when drowsy */
+  if(!st.earSw)st.earSw=[0,0];if(!st.earTw)st.earTw=[0,0];if(!cat.earT)cat.earT=[0,0];
+  if(t>(cat.earNext||0)){cat.earNext=t+rnd(1.2,4.5);var ei=Math.random()<0.5?0:1;if(Math.random()<0.45&&!cat.sleeping)st.earTw[ei]=1;else cat.earT[ei]=Math.random()<0.6?rnd(0.25,0.75):rnd(-0.25,0.1);if(Math.random()<0.3)cat.earT[1-ei]=cat.earT[ei]*rnd(0.3,0.9);}
+  var ek=1-Math.pow(0.004,dt);for(var e3=0;e3<2;e3++){cat.earT[e3]*=Math.pow(0.82,dt);st.earSw[e3]+=(cat.earT[e3]-st.earSw[e3])*ek;st.earTw[e3]*=Math.pow(0.0004,dt);}
+  if(ex==='annoyed')st.earO+=(0.55-st.earO)*ek;else if(cat.sleeping||cat.pose==='curl'||cat.pose==='side')st.earO+=(0.28-st.earO)*ek;
   if(ex==='chew')st.mouth=0.12+0.18*Math.abs(Math.sin(t*9));else if(ex==='lap'){st.blep=Math.sin(t*25)>0?1:0.15;st.mouth=0.04}else if(ex==='lick')st.blep=cat.lickB!=null?cat.lickB:0.6+0.4*Math.sin(t*12);
   else if(ex==='chatter')st.mouth=Math.sin(t*30)>0?0.45:0.08;else if(ex==='annoyed'){st.pup[0]+=(0.35-st.pup[0])*0.2}else if(ex==='sad'){st.eyeS+=(0.97-st.eyeS)*0.1}
   var bl=C.blinkAt(t,0.7),sb=t-cat.slowBlink;if(sb>=0&&sb<1.8)bl=Math.min(bl,1-0.94*Math.sin(Math.min(1,sb/1.8)*PI));if(ex==='sleep')bl=0.06;st.blink=bl;
