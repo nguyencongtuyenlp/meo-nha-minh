@@ -89,7 +89,7 @@ var VS3='attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec4 aB
  'rk=uQ[i2*2];sg=dot(r0,rk)<0.?-aW.z:aW.z;q+=rk*sg;d+=uQ[i2*2+1]*sg;'+
  'rk=uQ[i3*2];sg=dot(r0,rk)<0.?-aW.w:aW.w;q+=rk*sg;d+=uQ[i3*2+1]*sg;'+
  'float l=length(q);q/=l;d/=l;'+
- 'vR=aP;vF=aC.a;vSh=uSh;vM=vec2(0.6,0.);vec3 pp=aP+(aN*uSh*0.55+vec3(0.,-0.38,-0.5)*uSh*(0.35+0.65*uSh))*(uFL*aC.a);'+
+ 'vR=aP;vF=aC.a;vSh=uSh;vM=vec2(0.6,0.);vec3 pp=aP+(aN*uSh*0.9+vec3(0.,-0.36,-0.48)*uSh*uSh*0.85)*(uFL*aC.a);'+
  'vec3 p=pp+2.*cross(q.xyz,cross(q.xyz,pp)+q.w*pp)+2.*(q.w*d.xyz-d.w*q.xyz+cross(q.xyz,d.xyz));vec3 n=aN+2.*cross(q.xyz,cross(q.xyz,aN)+q.w*aN);'+
  /* fur is combed back and down the body: that direction, kept tangent to the skin, drives the anisotropic highlight */
  'vec3 cb=vec3(0.,-0.32,-0.42);vec3 tg=cb-aN*dot(aN,cb);tg=tg+2.*cross(q.xyz,cross(q.xyz,tg)+q.w*tg);'+
