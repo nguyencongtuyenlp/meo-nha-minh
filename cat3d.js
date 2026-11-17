@@ -96,7 +96,7 @@ var VS3='attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec4 aB
  'vec4 w=uR0*vec4(p,1.);vW=w.xyz;vN=(uR0*vec4(n,0.)).xyz;vTg=(uR0*vec4(tg,0.)).xyz;vC=vec4(aC.rgb*uTint,0.);vT=vec2(0.);gl_Position=uVP*w;}';
 var FS1='#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n'+
  'varying vec3 vN,vW,vR,vTg;varying vec4 vC;varying vec2 vT,vM;varying float vF,vSh;uniform vec3 uCam,uL,uFog;uniform sampler2D uTex;uniform float uUseTex,uFlip,uFur,uFD,uShOn,uSMs,uSMr;'+
- 'uniform vec3 uAmb0,uAmb1,uSunC,uLampP,uLampC;uniform vec4 uK;uniform float uExp;uniform mat4 uLVP;uniform sampler2D uSM;'+
+ 'uniform vec3 uAmb0,uAmb1,uSunC,uLampP,uLampC;uniform vec4 uK;uniform float uExp,uBl;uniform mat4 uLVP;uniform sampler2D uSM;'+
  'float unp(vec4 c){return dot(c,vec4(1.,1./255.,1./65025.,1./16581375.));}'+
  'float hsh(vec3 p){p=fract(p*0.3183099+0.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}'+
  'float vn(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hsh(i),hsh(i+vec3(1.,0.,0.)),f.x),mix(hsh(i+vec3(0.,1.,0.)),hsh(i+vec3(1.,1.,0.)),f.x),f.y),'+
@@ -107,10 +107,10 @@ var FS1='#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\npreci
  'vec3 aces(vec3 x){return clamp(x*(2.51*x+0.03)/(x*(2.43*x+0.59)+0.14),0.,1.);}'+
  'float ggx(float NH,float a2){float d=NH*NH*(a2-1.)+1.;return a2/(3.14159*d*d);}'+
  'void main(){vec3 n=normalize(vN);if(uFlip>0.5&&!gl_FrontFacing)n=-n;vec3 v=normalize(uCam-vW);'+
- 'vec4 tx=texture2D(uTex,vT);vec3 b=mix(vC.rgb,tx.rgb,tx.a*uUseTex);float rough=clamp(vM.x,0.05,1.),kind=floor(vM.y+0.5),fl=0.,occ=1.;'+
+ 'vec4 tx=texture2D(uTex,vT);vec3 b=mix(vC.rgb,tx.rgb,tx.a*uUseTex);float rough=clamp(vM.x,0.05,1.),kind=floor(vM.y+0.5),fl=0.,occ=1.,A=1.;'+
  'if(uFur>0.5&&uFD>0.){vec3 ca=vec3(0.,-0.6,-0.8),cb=vec3(1.,0.,0.),cc=vec3(0.,0.8,-0.6);vec3 q=vec3(dot(vR,ca)*0.2,dot(vR,cb),dot(vR,cc))*uFD;vec3 fc=fract(q)-0.5;fc.x*=0.25;float hs=hsh(floor(q));fl=smoothstep(0.02,0.14,vF);'+
  '\n#ifdef DER\nif(vSh>0.001&&length(fwidth(vW))>2.6*length(fwidth(vR))+1e-5)discard;\n#endif\n'+
- 'if(vSh>0.001&&fl>0.){float ln=mix(0.62,1.,hs)*(1.-dot(fc,fc)*1.5);if(vSh>ln)discard;}'+
+ 'if(vSh>0.001){if(fl<=0.)discard;float ln=mix(0.55,1.,hs)*(1.-dot(fc,fc)*1.6);A=smoothstep(-0.03,0.22,ln-vSh)*(1.-0.4*vSh);if(uBl<0.5&&A<0.45)discard;if(A<0.004)discard;}'+
  /* strands are dark at the root and catch light at the tip; the undercoat is shadowed by the hair above it */
  'float h2=hsh(floor(vec3(dot(vR,ca)*0.08,dot(vR,cb),dot(vR,cc))*uFD*0.45)+7.);float lum=dot(b,vec3(0.3,0.59,0.11));b*=mix(1.,mix(mix(0.8,0.9,smoothstep(0.55,0.9,lum)),1.04,vSh),fl)*(1.+((hs-0.5)*0.03+(h2-0.5)*0.07)*fl);occ=mix(1.,mix(mix(0.75,0.88,smoothstep(0.55,0.9,lum)),1.,vSh),fl);}'+
  'else if(kind>0.5&&uFur<0.5){'+
@@ -140,7 +140,7 @@ var FS1='#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\npreci
  '  col+=uSunC*uK.x*smoothstep(-0.1,0.35,d)*shd*(s1*0.05+s2*0.2*al)*mix(0.35,1.,fl*vSh);}'+
  ' float bl=pow(1.-NV,3.)*clamp(0.6-dot(v,uL)*0.5,0.,1.);col+=al*(uSunC*uK.x*bl*0.4*shd+amb*uK.y*pow(1.-NV,2.)*0.22);}'+
  'col=mix(col,al*uK.w,vC.a);float dist=length(uCam-vW);col=mix(col,lin(uFog),smoothstep(34.,70.,dist)*0.4);'+
- 'col=pow(aces(col*uExp),vec3(1./2.2));gl_FragColor=vec4(col,1.);}';
+ 'col=pow(aces(col*uExp),vec3(1./2.2));gl_FragColor=uBl>0.5?vec4(col*A,A):vec4(col,1.);}';
 var FSD='precision highp float;void main(){vec4 e=fract(gl_FragCoord.z*vec4(1.,255.,65025.,16581375.));e-=e.yzww*vec4(1./255.,1./255.,1./255.,0.);gl_FragColor=e;}';
 var VS2='attribute vec2 aQ;uniform mat4 uVP;uniform vec3 uCtr,uR,uU;uniform vec2 uSz;uniform float uBill;varying vec2 vQ;'+
  'void main(){vQ=aQ;vec3 p=uBill>0.5?uCtr+uR*aQ.x*uSz.x+uU*aQ.y*uSz.y:uCtr+vec3(aQ.x*uSz.x,0.,aQ.y*uSz.y);gl_Position=uVP*vec4(p,1.);}';
@@ -281,7 +281,10 @@ function makeEngine(cv){
     drawSkin:function(g,dq,R0,tint,fur){use(P3);var u=P3.u;gl.uniform4fv(u['uQ[0]'],dq);gl.uniformMatrix4fv(u.uR0,false,R0);gl.uniform3fv(u.uTint,tint||[1,1,1]);gl.bindTexture(gl.TEXTURE_2D,blank);
       attr(0,g.p,3);attr(1,g.n,3);attr(2,g.c,4);attr(3,g.b,4);attr(4,g.w,4);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,g.i);
       var ns=fur?fur.n:0,ty=U32?gl.UNSIGNED_INT:gl.UNSIGNED_SHORT;gl.uniform1f(u.uFL,fur?fur.len:0);gl.uniform1f(u.uFD,fur?fur.den:0);
-      for(var k=0;k<=ns;k++){gl.uniform1f(u.uSh,ns?k/ns:0);gl.drawElements(gl.TRIANGLES,g.cnt,ty,0);}},
+      gl.uniform1f(u.uBl,0);gl.uniform1f(u.uSh,0);gl.drawElements(gl.TRIANGLES,g.cnt,ty,0);
+      if(ns){gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);gl.uniform1f(u.uBl,1);
+        for(var k=1;k<=ns;k++){gl.uniform1f(u.uSh,k/ns);gl.drawElements(gl.TRIANGLES,g.cnt,ty,0);}
+        gl.uniform1f(u.uBl,0);gl.depthMask(true);gl.disable(gl.BLEND);}},
     sprites:function(camR,camU){use(P2);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
       gl.uniformMatrix4fv(P2.u.uVP,false,E.VP);gl.uniform3fv(P2.u.uR,camR);gl.uniform3fv(P2.u.uU,camU);gl.enable(gl.BLEND);gl.depthMask(false);},
     sprite:function(ctr,sz,col,pw,bill,additive){var u=P2.u;gl.blendFunc(gl.ONE,additive?gl.ONE:gl.ONE_MINUS_SRC_ALPHA);gl.uniform3fv(u.uCtr,ctr);gl.uniform2fv(u.uSz,sz);gl.uniform4fv(u.uCol,col);gl.uniform1f(u.uPow,pw);gl.uniform1f(u.uBill,bill?1:0);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);},
@@ -401,10 +404,10 @@ function buildCat(o){
   D.add(sdEL(add(mix(vt(0,.36,.26),add(hc,v(0,-.1,-.02)),0.45).slice(0,3),[0,0,r(.02)]),[r(.085*Math.sqrt(F)),r(.1),r(.08)]),r(.06));
   D.add(sdEL(hc,[r(hr*1.07),r(hr*.94),r(hr*.9)]),r(.04));
   [-1,1].forEach(function(s){D.add(sdEL(hv(s*.092,-.055,.02),[r(.09*Hf),r(.072*Hf),r(.075*Hf)]),r(.05));});
-  var RE=o.real||0,MZ=RE*0.028; /* realistic faces: a muzzle that stands out with full whisker pads, almond eyes set higher */
-  D.add(sdEL(hv(0,-.06-RE*0.006,.088+MZ),[r(.042*Hf*(1+RE*0.35)),r(.028*Hf*(1+RE*0.2)),r(.032*Hf*(1+RE*0.3))]),r(.045));
+  var RE=o.real||0,MZ=RE*0.008; /* realistic faces: a muzzle that stands out with full whisker pads, almond eyes set higher */
+  D.add(sdEL(hv(0,-.06-RE*0.006,.088+MZ),[r(.042*Hf*(1+RE*0.15)),r(.028*Hf*(1+RE*0.1)),r(.032*Hf*(1+RE*0.08))]),r(.045));
   
-  [-1,1].forEach(function(s){D.add(sdEL(hv(s*.024*(1+RE*0.3),-.07-RE*0.004,.092+MZ),[r(.03*Hf*(1+RE*0.3)),r(.024*Hf*(1+RE*0.15)),r(.026*Hf*(1+RE*0.25))]),r(.022+RE*0.01));});
+  [-1,1].forEach(function(s){D.add(sdEL(hv(s*.024*(1+RE*0.3),-.07-RE*0.004,.092+MZ),[r(.03*Hf*(1+RE*0.15)),r(.024*Hf*(1+RE*0.1)),r(.026*Hf*(1+RE*0.08))]),r(.022+RE*0.004));});
   [-1,1].forEach(function(s){var b0=hv(s*.083,.075,-.012),tp=mix(b0,hv(s*.136,.222,-.03),EA).slice(0,3);function ep(x,y,z){return mix(b0,hv(x,y,z),EA).slice(0,3)}
     D.add(sdRC(b0,tp,r(.066*Hf*Math.sqrt(EA)),r(.012*Hf)),r(.045));
     D.sub(sdRC(ep(s*.096,.13,.034),ep(s*.13,.208,-.002),r(.03*Hf*Math.sqrt(EA)),r(.003*Hf)),r(.01));});
@@ -441,7 +444,7 @@ function buildCat(o){
   function frameZ(n){var z=nrm(n),x=nrm(cross([0,1,0],z)),y=cross(z,x);return [x[0],x[1],x[2],0,y[0],y[1],y[2],0,z[0],z[1],z[2],0,0,0,0,1]}
   var er=r(.05*Hf*(o.eyeK||1));
   function rinv(m){return [m[0],m[4],m[8],0,m[1],m[5],m[9],0,m[2],m[6],m[10],0,-(m[0]*m[12]+m[1]*m[13]+m[2]*m[14]),-(m[4]*m[12]+m[5]*m[13]+m[6]*m[14]),-(m[8]*m[12]+m[9]*m[13]+m[10]*m[14]),1]}
-  [-1,1].forEach(function(s,i){var h=onS([s*(0.5-RE*0.07),-0.04+RE*0.13,0.86]),F0=M(T(h.p),frameZ(add(h.n,[0,0,0.18]))),EY=1.12-RE*0.26,SL=s*RE*0.2;
+  [-1,1].forEach(function(s,i){var h=onS([s*(0.5-RE*0.03),-0.04+RE*0.05,0.86]),F0=M(T(h.p),frameZ(add(h.n,[0,0,0.18]))),EY=1.12-RE*0.08,SL=0;
     /* every eye part is projected onto the real head surface, then lifted a little: the eye bulges like an eyeball instead of a flat disc */
     function hitAt(x,y){var X=x*Math.cos(SL)+y*Math.sin(SL),Y=-x*Math.sin(SL)+y*Math.cos(SL);var w=xf(F0,[X,Y,0]);return D.hit(hc,nrm(sub(w,hc)),r(0.5))}
     function dome(x,y,lift){var hh=hitAt(x,y);return add(hh.p,scl(hh.n,lift))}
@@ -600,7 +603,7 @@ var EXPR={normal:{e:['open','open'],m:0,p:[0.62,1],s:1,b:0,o:0,f:0},smile:{e:['o
 function expr(st,name,dt){var X=EXPR[name]||EXPR.normal,k=1-Math.pow(0.0005,dt),k2=1-Math.pow(0.004,dt);st.eye=X.e;st.mouth+=(X.m-st.mouth)*k;
   st.pup[0]+=(X.p[0]-st.pup[0])*k2;st.pup[1]+=(X.p[1]-st.pup[1])*k2;st.eyeS+=(X.s-st.eyeS)*k2;st.blep+=(X.b-st.blep)*k;st.earO+=(X.o-st.earO)*k2;st.earF+=(X.f-st.earF)*k2;}
 /* fur quality steps down by itself when frames get slow (older phones) */
-var FURQ=1,fpA=0,fpN=0;function setFurQ(q){FURQ=q}function getFurQ(){return FURQ}function furPerf(d){if(d>0.2)return;fpA+=d;if(++fpN>=45){if(fpA/fpN>0.03&&FURQ>0.45)FURQ-=0.2;fpA=0;fpN=0;}}
+var FURQ=1,fpA=0,fpN=0;function setFurQ(q){FURQ=q}function getFurQ(){return FURQ}function furPerf(d){if(d>0.2)return;fpA+=d;if(++fpN>=45){if(fpA/fpN>0.05&&FURQ>0.6)FURQ-=0.1;fpA=0;fpN=0;}}
 var NOFUR={n:0,len:0,den:0};
 function drawCat(E,g,c,M0,st,t,tint){
   var r=poseCat(c,st,M0,t);E.drawSkin(g.skin,r.dq,r.R0,tint,{n:Math.max(3,Math.round(c.fur.n*FURQ)),len:c.fur.len,den:c.fur.den});E.draw(g.head,r.head,tint);E.draw(g.chest,r.chest,tint);
@@ -646,18 +649,19 @@ function calicoColor(p,n,J,S,hc){
 }
 var TO=H('#f4a057'),TD=H('#d5733a'),TC=H('#fff0dc'),TPK=H('#f7b2bf');
 function tabbyColor(p,n,J,S,hc){
-  var x=p[0]/S,y=p[1]/S,z=p[2]/S,h=headLocal(p,S,hc),hd=Math.sqrt(h[0]*h[0]+h[1]*h[1]+h[2]*h[2]),e=nz3(x,y,z)*0.6,c,Hf=1+(hc[1]/S-0.6)/0.07;
+  /* soft, feathered tabby markings (real fur blurs every edge), a little lighter than before */
+  var x=p[0]/S,y=p[1]/S,z=p[2]/S,h=headLocal(p,S,hc),hd=Math.sqrt(h[0]*h[0]+h[1]*h[1]+h[2]*h[2]),e=nz3(x,y,z)*0.6,c,Hf=1+(hc[1]/S-0.6)/0.07,K=0.72;
   if(hd<0.2*Hf+0.04&&h[1]>-0.15*Hf){
     c=TO;
-    c=mix(c,TD,sm(0.35,0.75,Math.cos(h[0]*85/Hf))*S1(0.06*Hf,h[1],0.015)*S1(-0.04,h[2],0.02)*(1-S1(0.09*Hf,Math.abs(h[0]),0.01)));
-    c=mix(c,TD,S1(0.13*Hf,Math.abs(h[0]),0.01)*S1(0,h[2],0.02)*sm(0.3,0.7,Math.sin(h[1]*110/Hf+1))*(1-S1(0.03*Hf,h[1],0.01))*S1(-0.07*Hf,h[1],0.01));
-    c=mix(c,TC,(1-S1(-0.035*Hf,h[1],0.015))*S1(0.05*Hf,h[2],0.02));
-    return mix(c,TPK,S1(0.075*Hf,Math.abs(h[0]),0.008)*S1(0.13*Hf,h[1],0.01)*S1(0.15,n[2],0.1));}
-  if(z<-0.36&&y>0.26){var tz=-z;return mix(TO,TD,Math.max(S1(0.8,tz,0.02),sm(0.15,0.5,Math.sin(tz*36))));}
+    c=mix(c,TD,K*sm(0.15,0.9,Math.cos(h[0]*85/Hf+e*8))*S1(0.06*Hf,h[1],0.03)*S1(-0.04,h[2],0.035)*(1-S1(0.09*Hf,Math.abs(h[0]),0.025)));
+    c=mix(c,TD,K*S1(0.13*Hf,Math.abs(h[0]),0.025)*S1(0,h[2],0.035)*sm(0.15,0.85,Math.sin(h[1]*110/Hf+1+e*8))*(1-S1(0.03*Hf,h[1],0.025))*S1(-0.07*Hf,h[1],0.025));
+    c=mix(c,TC,(1-S1(-0.035*Hf,h[1],0.03))*S1(0.05*Hf,h[2],0.035));
+    return mix(c,TPK,0.75*S1(0.075*Hf,Math.abs(h[0]),0.012)*S1(0.13*Hf,h[1],0.015)*S1(0.15,n[2],0.12));}
+  if(z<-0.36&&y>0.26){var tz=-z;return mix(TO,TD,K*Math.max(S1(0.8,tz,0.04),sm(0.0,0.7,Math.sin(tz*36))));}
   c=TO;
-  c=mix(c,TD,S1(0.3,y,0.02)*sm(0.3,0.6,Math.sin(z*40+Math.sin(x*22)*1.3+e*30)));
-  c=mix(c,TD,(1-S1(0.3,y,0.02))*sm(0.5,0.8,Math.sin(y*62+e*20))*(1-sm(0.6,0.8,Math.abs(n[1]))));
-  var cream=Math.max(1-S1(0.08,y,0.012),sm(-0.25,-0.5,n[1])*(1-S1(0.36,y,0.02)),S1(0.2,z,0.02)*(1-S1(0.43,y,0.02))*S1(0.12,y,0.02)*(1-S1(0.1+e,Math.abs(x),0.02)));
+  c=mix(c,TD,K*S1(0.3,y,0.04)*sm(0.15,0.8,Math.sin(z*40+Math.sin(x*22)*1.3+e*30)));
+  c=mix(c,TD,K*(1-S1(0.3,y,0.04))*sm(0.35,0.95,Math.sin(y*62+e*20))*(1-sm(0.5,0.85,Math.abs(n[1]))));
+  var cream=Math.max(1-S1(0.08,y,0.03),sm(-0.15,-0.55,n[1])*(1-S1(0.36,y,0.04)),S1(0.2,z,0.04)*(1-S1(0.43,y,0.04))*S1(0.12,y,0.04)*(1-S1(0.1+e,Math.abs(x),0.04)));
   return mix(c,TC,cream);
 }
 var KITTEN=null,KPOSE=null,MAINCAT=null,MPOSE=null;
