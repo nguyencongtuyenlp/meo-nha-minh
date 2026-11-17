@@ -506,12 +506,12 @@ function buildCat(o){
   for(vi=0;vi<net.P.length;vi+=3){p=[net.P[vi],net.P[vi+1],net.P[vi+2]];var ci=vi/3*4,x=p[0]/S,y=p[1]/S,z=p[2]/S,nz_=net.N[vi+2];
     var hl=[(p[0]-hc[0])/S/Hf,(p[1]-hc[1])/S/Hf,(p[2]-hc[2])/S/Hf],hd_=Math.sqrt(hl[0]*hl[0]+hl[1]*hl[1]+hl[2]*hl[2])*Hf,Lh=1;
     if(hd_<0.2*Hf+0.04&&hl[1]>-0.15){
-      Lh=0.75+0.75*sm(0.02,-0.08,hl[1])*sm(0.07,0.12,Math.abs(hl[0]));
-      Lh*=1-0.5*sm(0.04,0.1,hl[2]);
+      Lh=1.0+0.8*sm(0.02,-0.08,hl[1])*sm(0.07,0.12,Math.abs(hl[0]));
+      Lh*=1-0.2*sm(0.06,0.12,hl[2]); /* the face keeps its fur: only the very front of the muzzle is a little shorter */
       var earZ=sm(0.09,0.13,hl[1])*sm(0.05,0.08,Math.abs(hl[0]));Lh=lerp(Lh,nz_>0.15?0.1:0.3,earZ);
-      for(var e2=0;e2<2;e2++)Lh*=sm(1.12,1.9,len3(sub(p,eyeC[e2]))/er);
-      Lh*=sm(1.0,2.4,len3(sub(p,nz.p))/r(.016*Hf));
-      Lh*=sm(0.55,1.25,len3(sub(p,add(mTop,[0,-r(.02*Hf),0])))/r(.045*Hf));
+      for(var e2=0;e2<2;e2++)Lh*=sm(1.04,1.5,len3(sub(p,eyeC[e2]))/er);
+      Lh*=sm(0.9,1.8,len3(sub(p,nz.p))/r(.016*Hf));
+      Lh*=sm(0.42,0.95,len3(sub(p,add(mTop,[0,-r(.02*Hf),0])))/r(.045*Hf));
       for(e2=0;e2<blushP.length;e2++){var bd=sub(p,blushP[e2]),bq=Math.sqrt(bd[0]*bd[0]*0.45+bd[1]*bd[1]+bd[2]*bd[2]*0.45)/r(.04*Hf),bk=(o.blushK===undefined?0.42:o.blushK)*sm(1.25,0.35,bq);
         m.C[ci]+=(o.blush[0]-m.C[ci])*bk;m.C[ci+1]+=(o.blush[1]-m.C[ci+1])*bk;m.C[ci+2]+=(o.blush[2]-m.C[ci+2])*bk;}
     }else if(z<-0.36&&y>0.26)Lh=1.3;
