@@ -112,7 +112,7 @@ var FS1='#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\npreci
  '\n#ifdef DER\nif(vSh>0.001&&length(fwidth(vW))>2.6*length(fwidth(vR))+1e-5)discard;\n#endif\n'+
  'if(vSh>0.001&&fl>0.){float ln=mix(0.62,1.,hs)*(1.-dot(fc,fc)*1.5);if(vSh>ln)discard;}'+
  /* strands are dark at the root and catch light at the tip; the undercoat is shadowed by the hair above it */
- 'float h2=hsh(floor(vec3(dot(vR,ca)*0.08,dot(vR,cb),dot(vR,cc))*uFD*0.45)+7.);float lum=dot(b,vec3(0.3,0.59,0.11));b*=mix(1.,mix(mix(0.7,0.88,smoothstep(0.55,0.9,lum)),1.05,vSh),fl)*(1.+((hs-0.5)*0.05+(h2-0.5)*0.04)*fl);occ=mix(1.,mix(mix(0.68,0.85,smoothstep(0.55,0.9,lum)),1.,vSh),fl);}'+
+ 'float h2=hsh(floor(vec3(dot(vR,ca)*0.08,dot(vR,cb),dot(vR,cc))*uFD*0.45)+7.);float lum=dot(b,vec3(0.3,0.59,0.11));b*=mix(1.,mix(mix(0.8,0.9,smoothstep(0.55,0.9,lum)),1.04,vSh),fl)*(1.+((hs-0.5)*0.03+(h2-0.5)*0.07)*fl);occ=mix(1.,mix(mix(0.75,0.88,smoothstep(0.55,0.9,lum)),1.,vSh),fl);}'+
  'else if(kind>0.5&&uFur<0.5){'+
  ' if(kind<1.5){float g=fbm(vec3(vW.x*1.3,vW.y*34.,vW.z*34.));b*=0.84+0.3*g;rough*=mix(1.15,0.8,g);n=bump(n,vW*vec3(4.,90.,90.),0.05);}'+
  ' else if(kind<2.5){float w=sin(vW.x*240.)*sin(vW.z*240.+vW.y*240.);float fz=vn(vW*70.);b*=0.88+0.07*w*w+0.14*fz;n=bump(n,vW*150.,0.35);}'+
@@ -401,9 +401,10 @@ function buildCat(o){
   D.add(sdEL(add(mix(vt(0,.36,.26),add(hc,v(0,-.1,-.02)),0.45).slice(0,3),[0,0,r(.02)]),[r(.085*Math.sqrt(F)),r(.1),r(.08)]),r(.06));
   D.add(sdEL(hc,[r(hr*1.07),r(hr*.94),r(hr*.9)]),r(.04));
   [-1,1].forEach(function(s){D.add(sdEL(hv(s*.092,-.055,.02),[r(.09*Hf),r(.072*Hf),r(.075*Hf)]),r(.05));});
-  D.add(sdEL(hv(0,-.06,.088),[r(.042*Hf),r(.028*Hf),r(.032*Hf)]),r(.045));
+  var RE=o.real||0,MZ=RE*0.028; /* realistic faces: a muzzle that stands out with full whisker pads, almond eyes set higher */
+  D.add(sdEL(hv(0,-.06-RE*0.006,.088+MZ),[r(.042*Hf*(1+RE*0.35)),r(.028*Hf*(1+RE*0.2)),r(.032*Hf*(1+RE*0.3))]),r(.045));
   
-  [-1,1].forEach(function(s){D.add(sdEL(hv(s*.024,-.07,.092),[r(.03*Hf),r(.024*Hf),r(.026*Hf)]),r(.022));});
+  [-1,1].forEach(function(s){D.add(sdEL(hv(s*.024*(1+RE*0.3),-.07-RE*0.004,.092+MZ),[r(.03*Hf*(1+RE*0.3)),r(.024*Hf*(1+RE*0.15)),r(.026*Hf*(1+RE*0.25))]),r(.022+RE*0.01));});
   [-1,1].forEach(function(s){var b0=hv(s*.083,.075,-.012),tp=mix(b0,hv(s*.136,.222,-.03),EA).slice(0,3);function ep(x,y,z){return mix(b0,hv(x,y,z),EA).slice(0,3)}
     D.add(sdRC(b0,tp,r(.066*Hf*Math.sqrt(EA)),r(.012*Hf)),r(.045));
     D.sub(sdRC(ep(s*.096,.13,.034),ep(s*.13,.208,-.002),r(.03*Hf*Math.sqrt(EA)),r(.003*Hf)),r(.01));});
@@ -440,9 +441,9 @@ function buildCat(o){
   function frameZ(n){var z=nrm(n),x=nrm(cross([0,1,0],z)),y=cross(z,x);return [x[0],x[1],x[2],0,y[0],y[1],y[2],0,z[0],z[1],z[2],0,0,0,0,1]}
   var er=r(.05*Hf*(o.eyeK||1));
   function rinv(m){return [m[0],m[4],m[8],0,m[1],m[5],m[9],0,m[2],m[6],m[10],0,-(m[0]*m[12]+m[1]*m[13]+m[2]*m[14]),-(m[4]*m[12]+m[5]*m[13]+m[6]*m[14]),-(m[8]*m[12]+m[9]*m[13]+m[10]*m[14]),1]}
-  [-1,1].forEach(function(s,i){var h=onS([s*0.5,-0.04,0.86]),F0=M(T(h.p),frameZ(add(h.n,[0,0,0.18]))),EY=1.12;
+  [-1,1].forEach(function(s,i){var h=onS([s*(0.5-RE*0.07),-0.04+RE*0.13,0.86]),F0=M(T(h.p),frameZ(add(h.n,[0,0,0.18]))),EY=1.12-RE*0.26,SL=s*RE*0.2;
     /* every eye part is projected onto the real head surface, then lifted a little: the eye bulges like an eyeball instead of a flat disc */
-    function hitAt(x,y){var w=xf(F0,[x,y,0]);return D.hit(hc,nrm(sub(w,hc)),r(0.5))}
+    function hitAt(x,y){var X=x*Math.cos(SL)+y*Math.sin(SL),Y=-x*Math.sin(SL)+y*Math.cos(SL);var w=xf(F0,[X,Y,0]);return D.hit(hc,nrm(sub(w,hc)),r(0.5))}
     function dome(x,y,lift){var hh=hitAt(x,y);return add(hh.p,scl(hh.n,lift))}
     function lift(rho){return r(.0012)+er*0.11*Math.max(0,1-rho*rho)}
     eyes[i].m(0.06,6);pup[i].m(0.06,6);happy[i].m(0.7,0);wink[i].m(0.7,0);
@@ -470,7 +471,7 @@ function buildCat(o){
   var nz=onS([0,-0.33,1]),nose=M(T(nz.p),frameZ(nz.n));hd.m(0.32,8);lipM.m(0.55,0);tongue.m(0.3,8);
   hd.surf(function(u,vv){var a=vv*TAU,t=u*PI,R=r(.016*Hf)*(1-0.3*Math.max(0,-Math.sin(a)));return [R*Math.sin(t)*Math.cos(a),R*0.75*Math.sin(t)*Math.sin(a),R*0.55*Math.cos(t)]},10,16,o.nose,nose);
   function proj(x,y){return D.hit([hc[0]+x,hc[1]+y,hc[2]],[0,0,1],r(0.3)).p}
-  lipM.surf(tube(function(u){var x=(u-0.5)*r(.062*Hf),y=(nz.p[1]-hc[1])-r(.02*Hf)-r(.012*Hf)*Math.abs(Math.sin(TAU*u));var q=proj(x,y);return add(q,[0,0,r(.0015)])},capR(r(.0027*Hf)),36),36,5,o.lip);
+  lipM.surf(tube(function(u){var x=(u-0.5)*r(.062*Hf),y=(nz.p[1]-hc[1])-r(.02*Hf)-r(.012*Hf)*Math.abs(Math.sin(TAU*u));var q=proj(x,y);return add(q,[0,0,r(.0015)])},capR(r(.0027*Hf*(1-RE*0.45))),36),36,5,o.lip);
   hd.m(0.55,0);hd.surf(tube(function(u){var y=(nz.p[1]-hc[1])-r(.009*Hf)-u*r(.011*Hf);return add(proj(0,y),[0,0,r(.0015)])},cst(r(.0024*Hf)),6),6,5,o.lip);
   (function(){var yL=(nz.p[1]-hc[1])-r(.02*Hf),A=r(.033*Hf),nu=10,nv=32;
     function lipY(x){return yL-r(.005*Hf)-r(.0045*Hf)*Math.abs(Math.sin(PI*Math.max(-1,Math.min(1,x/A))))}
