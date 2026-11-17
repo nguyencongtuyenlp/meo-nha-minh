@@ -29,12 +29,18 @@ var KITTEN_IRIS=['#86bde9','#1f3466'];   // every kitten starts with blue eyes
 
 /* age stage k = 0..4  ->  build options (kitten: big head, short legs, round & fluffy) */
 var STAGES=5;
-function catParams(coat,k){
-  var cf=COATS[coat]||COATS.cam,g=k/(STAGES-1),eyeG=sm(0,0.45,g);
+/* the player's shape settings: style 0 = realistic, 1 = cute; the rest are multipliers around 1 */
+var SHAPE0={style:0.45,head:1,eye:1,ear:1,body:1,fat:1,leg:1,tail:1};
+function shapeOf(sh){var o={};for(var k in SHAPE0)o[k]=sh&&typeof sh[k]==='number'?sh[k]:SHAPE0[k];return o}
+function shapeKey(sh){var o=shapeOf(sh),a=[];for(var k in SHAPE0)a.push(Math.round(o[k]*100));return a.join('.')}
+function catParams(coat,k,shape){
+  var cf=COATS[coat]||COATS.cam,g=k/(STAGES-1),eyeG=sm(0,0.45,g),sh=shapeOf(shape),cu=sh.style;
+  function L(a,b){return a+(b-a)*cu}
   var iris=[mix(H(KITTEN_IRIS[0]),H(cf.iris[0]),eyeG),mix(H(KITTEN_IRIS[1]),H(cf.iris[1]),eyeG)];
-  return {S:0.8+0.8*g, fat:1.0+0.22*g, head:1.5-0.3*g, leg:0.9+0.16*g, tail:0.82+0.4*g, cell:0.0145,
+  return {S:0.8+0.8*g, fat:(1.0+0.22*g)*sh.fat, head:(1.5-0.3*g)*L(0.8,1.02)*sh.head, leg:0.9+0.16*g, legL:L(1.1,0.95)*sh.leg, tail:0.82+0.4*g, tailL:sh.tail,
+    body:L(1.06,0.95)*sh.body, ear:L(1.04,0.94)*sh.ear, lash:L(0.2,1), blushK:L(0,0.4), cell:0.0145,
     color:cf.color, iris:iris, nose:H(cf.nose), lip:H(cf.lip), whisker:H(cf.whisker), blush:H(cf.blush), bean:H(cf.bean),
-    eyeK:1.16-0.12*g, shells:10, furLen:0.024-0.004*g, furDen:220};
+    eyeK:(1.16-0.12*g)*L(0.76,1.0)*sh.eye, shells:12, furLen:0.024-0.004*g, furDen:300};
 }
 /* plain, clonable copy of a built cat (no functions), with typed arrays */
 function pack(o){
@@ -49,6 +55,6 @@ function pack(o){
     return r;}
   return o;
 }
-function buildPacked(coat,k){return pack(C.buildCat(catParams(coat,k)))}
-G.COATS=COATS;G.CAT_STAGES=STAGES;G.catParams=catParams;G.buildPacked=buildPacked;
+function buildPacked(coat,k,shape){return pack(C.buildCat(catParams(coat,k,shape)))}
+G.COATS=COATS;G.SHAPE0=SHAPE0;G.shapeOf=shapeOf;G.shapeKey=shapeKey;G.CAT_STAGES=STAGES;G.catParams=catParams;G.buildPacked=buildPacked;
 })(typeof self!=='undefined'?self:this);

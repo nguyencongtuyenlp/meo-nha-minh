@@ -112,7 +112,7 @@ var FS1='#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\npreci
  '\n#ifdef DER\nif(vSh>0.001&&length(fwidth(vW))>2.6*length(fwidth(vR))+1e-5)discard;\n#endif\n'+
  'if(vSh>0.001&&fl>0.){float ln=mix(0.62,1.,hs)*(1.-dot(fc,fc)*1.5);if(vSh>ln)discard;}'+
  /* strands are dark at the root and catch light at the tip; the undercoat is shadowed by the hair above it */
- 'float h2=hsh(floor(vR*uFD*0.37)+7.);b*=mix(1.,mix(0.7,1.06,vSh),fl)*(1.+((hs-0.5)*0.1+(h2-0.5)*0.07)*fl);occ=mix(1.,mix(0.68,1.,vSh),fl);}'+
+ 'float h2=hsh(floor(vR*uFD*0.37)+7.);b*=mix(1.,mix(0.7,1.06,vSh),fl)*(1.+((hs-0.5)*0.05+(h2-0.5)*0.04)*fl);occ=mix(1.,mix(0.68,1.,vSh),fl);}'+
  'else if(kind>0.5&&uFur<0.5){'+
  ' if(kind<1.5){float g=fbm(vec3(vW.x*1.3,vW.y*34.,vW.z*34.));b*=0.84+0.3*g;rough*=mix(1.15,0.8,g);n=bump(n,vW*vec3(4.,90.,90.),0.05);}'+
  ' else if(kind<2.5){float w=sin(vW.x*240.)*sin(vW.z*240.+vW.y*240.);float fz=vn(vW*70.);b*=0.88+0.07*w*w+0.14*fz;n=bump(n,vW*150.,0.35);}'+
@@ -137,7 +137,7 @@ var FS1='#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\npreci
  ' col+=env*fr*(1.-rough)*(1.-rough)*uK.y*occ*(kind>5.5&&kind<6.5||kind>7.5?2.2:1.);}'+
  'else{vec3 T=vTg-n*dot(n,vTg);float tl=length(T);'+
  ' if(tl>1e-4){T/=tl;vec3 h=normalize(uL+v);float t1=dot(T,h);float s1=pow(sqrt(max(1.-t1*t1,0.)),90.);vec3 T2=normalize(T+n*0.4);float t2=dot(T2,h);float s2=pow(sqrt(max(1.-t2*t2,0.)),16.);'+
- '  col+=uSunC*uK.x*smoothstep(-0.1,0.35,d)*shd*(s1*0.07+s2*0.22*al)*mix(0.35,1.,fl*vSh);}'+
+ '  col+=uSunC*uK.x*smoothstep(-0.1,0.35,d)*shd*(s1*0.05+s2*0.2*al)*mix(0.35,1.,fl*vSh);}'+
  ' float bl=pow(1.-NV,3.)*clamp(0.6-dot(v,uL)*0.5,0.,1.);col+=al*(uSunC*uK.x*bl*0.4*shd+amb*uK.y*pow(1.-NV,2.)*0.22);}'+
  'col=mix(col,al*uK.w,vC.a);float dist=length(uCam-vW);col=mix(col,lin(uFog),smoothstep(34.,70.,dist)*0.4);'+
  'col=pow(aces(col*uExp),vec3(1./2.2));gl_FragColor=vec4(col,1.);}';
@@ -368,33 +368,43 @@ function ik2(H,F,a,b,hint){var d=sub(F,H),L=len3(d),dir=L>1e-6?scl(d,1/L):[0,-1,
 /* ================= cat builder ================= */
 var BONES=22;
 function buildCat(o){
-  var S=o.S,F=o.fat||1,Hf=o.head||1,Lf=o.leg||1,Tf=o.tail||1;
+  var S=o.S,F=o.fat||1,Hf=o.head||1,Lf=o.leg||1,Tf=o.tail||1,BL=o.body||1,TLf=o.tailL||1,EA=o.ear||1,LL=o.legL||1,LW=o.lash===undefined?1:o.lash;
   function v(x,y,z){return [x*S,y*S,z*S]}function r(x){return x*S}
+  /* torso points: the body-length slider stretches the spine front to back; the head keeps its own shape */
+  function vb(x,y,z){return [x*S,y*S,z*S*BL]}
   var fx=.075*(1+(F-1)*0.6),bx=.085*(1+(F-1)*0.6);
   /* skeleton after the domestic cat: sacrum/pelvis, lumbar, thorax, cervical, skull; 5 caudal segments;
      fore limb = humerus (elbow points back) + radius/ulna + metacarpus/digits (digitigrade);
      hind limb = femur (stifle points forward) + tibia/fibula + long metatarsus (hock high and back) */
-  var J={P0:v(0,.34,-.2),L0:v(0,.355,-.02),T0:v(0,.37,.14),N0:v(0,.45,.3),HC:v(0,.6+(Hf-1)*.07,.43+(Hf-1)*.05),
-    TL:[v(0,.37,-.4),v(0,.41,-.52),v(0,.47,-.63),v(0,.54,-.73),v(0,.61,-.81),v(0,.68,-.87)],
-    FS:[v(-fx,.315,.265),v(fx,.315,.265)],FE:[v(-fx,.19,.215),v(fx,.19,.215)],FW:[v(-fx,.058,.245),v(fx,.058,.245)],FP:[v(-fx,.03,.296),v(fx,.03,.296)],
-    BH:[v(-bx,.31,-.22),v(bx,.31,-.22)],BK:[v(-bx,.2,-.125),v(bx,.2,-.125)],BA:[v(-bx,.1,-.27),v(bx,.1,-.27)],BP:[v(-bx,.03,-.215),v(bx,.03,-.215)]};
+  function tl(y,z){var b=vb(0,.37,-.4);return [0,b[1]+(y-.37)*S*TLf,b[2]+(z+.4)*S*TLf]}
+  var J={P0:vb(0,.34,-.2),L0:vb(0,.355,-.02),T0:vb(0,.37,.14),N0:vb(0,.45,.3),HC:vb(0,.6+(Hf-1)*.07,(.43+(Hf-1)*.05)),
+    TL:[tl(.37,-.4),tl(.41,-.52),tl(.47,-.63),tl(.54,-.73),tl(.61,-.81),tl(.68,-.87)],
+    FS:[vb(-fx,.315,.265),vb(fx,.315,.265)],FE:[vb(-fx,.19,.215),vb(fx,.19,.215)],FW:[vb(-fx,.058,.245),vb(fx,.058,.245)],FP:[vb(-fx,.03,.296),vb(fx,.03,.296)],
+    BH:[vb(-bx,.31,-.22),vb(bx,.31,-.22)],BK:[vb(-bx,.2,-.125),vb(bx,.2,-.125)],BA:[vb(-bx,.1,-.27),vb(bx,.1,-.27)],BP:[vb(-bx,.03,-.215),vb(bx,.03,-.215)]};
+  /* leg length scales from the hip/shoulder down, so long legs lift the body instead of sinking into it */
+  if(LL!==1){['FE','FW','FP'].forEach(function(k2){for(var s2=0;s2<2;s2++){var a2=J.FS[s2],p2=J[k2][s2];J[k2][s2]=[p2[0],a2[1]+(p2[1]-a2[1])*LL,p2[2]];}});
+    ['BK','BA','BP'].forEach(function(k2){for(var s2=0;s2<2;s2++){var a2=J.BH[s2],p2=J[k2][s2];J[k2][s2]=[p2[0],a2[1]+(p2[1]-a2[1])*LL,p2[2]];}});
+    var lift=(LL-1)*0.285*S;['P0','L0','T0','N0','HC'].forEach(function(k2){J[k2]=add(J[k2],[0,lift,0])});J.TL=J.TL.map(function(p2){return add(p2,[0,lift,0])});
+    ['FS','BH'].forEach(function(k2){J[k2]=J[k2].map(function(p2){return add(p2,[0,lift,0])})});
+    ['FE','FW','BK','BA'].forEach(function(k2){J[k2]=J[k2].map(function(p2){return add(p2,[0,lift*(p2[1]>0.1*S?0.5:0.15),0])})});}
   J.MID=J.L0;J.T1=J.TL[0];J.TE=J.TL[5];
   var hc=J.HC,hr=.155*Hf,D=new SDF();
   function hv(x,y,z){return add(hc,v(x*Hf,y*Hf,z*Hf))}
-  J.HN=hv(0,-.075,-.075);J.EB=[hv(-.083,.075,-.012),hv(.083,.075,-.012)];J.ET=[hv(-.136,.222,-.03),hv(.136,.222,-.03)];
-  D.add(sdRC(v(0,.345,-.23),v(0,.37,.22),r(.15*F),r(.132*F)));
-  D.add(sdEL(v(0,.305,-.03),[r(.128*F),r(.12*F),r(.25)]),r(.07));
-  D.add(sdEL(v(0,.36,.2),[r(.112*F),r(.13*F),r(.12)]),r(.06));
-  D.add(sdEL(v(0,.35,-.24),[r(.135*F),r(.14*F),r(.13)]),r(.06));
-  D.add(sdRC(v(0,.4,.24),add(hc,v(0,-.07,-.05)),r(.085*Math.sqrt(F)),r(.08*Hf)),r(.05));
+  J.HN=hv(0,-.075,-.075);J.EB=[hv(-.083,.075,-.012),hv(.083,.075,-.012)];J.ET=[mix(J.EB[0],hv(-.136,.222,-.03),EA).slice(0,3),mix(J.EB[1],hv(.136,.222,-.03),EA).slice(0,3)];
+  var LY=LL!==1?[0,(LL-1)*0.285*S,0]:[0,0,0];function vt(x,y,z){return add(vb(x,y,z),LY)}
+  D.add(sdRC(vt(0,.345,-.23),vt(0,.37,.22),r(.15*F),r(.132*F)));
+  D.add(sdEL(vt(0,.305,-.03),[r(.128*F),r(.12*F),r(.25*BL)]),r(.07));
+  D.add(sdEL(vt(0,.36,.2),[r(.112*F),r(.13*F),r(.12*BL)]),r(.06));
+  D.add(sdEL(vt(0,.35,-.24),[r(.135*F),r(.14*F),r(.13*BL)]),r(.06));
+  D.add(sdRC(vt(0,.4,.24),add(hc,v(0,-.07,-.05)),r(.085*Math.sqrt(F)),r(.08*Hf)),r(.05));
   D.add(sdEL(hc,[r(hr*1.07),r(hr*.94),r(hr*.9)]),r(.04));
   [-1,1].forEach(function(s){D.add(sdEL(hv(s*.092,-.055,.02),[r(.09*Hf),r(.072*Hf),r(.075*Hf)]),r(.05));});
   D.add(sdEL(hv(0,-.06,.088),[r(.042*Hf),r(.028*Hf),r(.032*Hf)]),r(.045));
   
   [-1,1].forEach(function(s){D.add(sdEL(hv(s*.024,-.07,.092),[r(.03*Hf),r(.024*Hf),r(.026*Hf)]),r(.022));});
-  [-1,1].forEach(function(s){var b0=hv(s*.083,.075,-.012),tp=hv(s*.136,.222,-.03);
-    D.add(sdRC(b0,tp,r(.066*Hf),r(.012*Hf)),r(.045));
-    D.sub(sdRC(hv(s*.096,.13,.034),hv(s*.13,.208,-.002),r(.03*Hf),r(.003*Hf)),r(.01));});
+  [-1,1].forEach(function(s){var b0=hv(s*.083,.075,-.012),tp=mix(b0,hv(s*.136,.222,-.03),EA).slice(0,3);function ep(x,y,z){return mix(b0,hv(x,y,z),EA).slice(0,3)}
+    D.add(sdRC(b0,tp,r(.066*Hf*Math.sqrt(EA)),r(.012*Hf)),r(.045));
+    D.sub(sdRC(ep(s*.096,.13,.034),ep(s*.13,.208,-.002),r(.03*Hf*Math.sqrt(EA)),r(.003*Hf)),r(.01));});
   [0,1].forEach(function(i){
     D.add(sdRC(J.FS[i],J.FE[i],r(.05*Lf*Math.sqrt(F)),r(.038*Lf)),r(.05));D.add(sdRC(J.FE[i],J.FW[i],r(.036*Lf),r(.03*Lf)),r(.02));
     D.add(sdEL(mix(J.FW[i],J.FP[i],0.6).slice(0,3),[r(.039*Lf),r(.03*Lf),r(.05*Lf)]),r(.025));
@@ -446,8 +456,8 @@ function buildCat(o){
       eyes[i].surf(ell(er*g[2],er*g[2],er*0.05),8,10,H('#ffffff',1),M(T(add(hh.p,scl(hh.n,lift(rho)+r(.0016)))),frameZ(hh.n)));});
     eyes[i].m(0.7,0);
     // thin lash line hugging the upper rim, flicking out at the outer corner
-    eyes[i].surf(tube(function(u){var a=PI*(0.12+u*0.76),rr=1.03+0.03*Math.sin(u*PI);return dome(Math.cos(a)*er*rr,Math.sin(a)*er*EY*rr,r(.0022))},function(u){return er*(0.035+0.035*Math.sin(u*PI))},24),24,6,H('#2b1a22'));
-    eyes[i].surf(tube(function(u){var a=PI*(s>0?0.12:0.88),x0=Math.cos(a)*er*1.03,y0=Math.sin(a)*er*EY*1.03;return dome(x0+s*u*er*0.26,y0+u*er*0.18,r(.0022))},capR(er*0.045),8),8,5,H('#2b1a22'));
+    eyes[i].surf(tube(function(u){var a=PI*(0.12+u*0.76),rr=1.03+0.03*Math.sin(u*PI);return dome(Math.cos(a)*er*rr,Math.sin(a)*er*EY*rr,r(.0022))},function(u){return er*(0.012+0.03*LW)*(0.6+0.8*Math.sin(u*PI))},24),24,6,H('#2b1a22'));
+    eyes[i].surf(tube(function(u){var a=PI*(s>0?0.12:0.88),x0=Math.cos(a)*er*1.03,y0=Math.sin(a)*er*EY*1.03;return dome(x0+s*u*er*(0.1+0.16*LW),y0+u*er*(0.06+0.12*LW),r(.0022))},capR(er*(0.015+0.03*LW)),8),8,5,H('#2b1a22'));
     // closed-eye shapes painted flush on the fur: gentle happy arch and wink
     var ap=[];for(var k=0;k<=12;k++){var a=PI*(0.2+0.6*k/12);ap.push(dome(Math.cos(a)*er*0.95,(Math.sin(a)-0.78)*er*0.9,r(.002)));}
     happy[i].surf(tube(polyCurve(ap),capR(er*0.08),40),40,8,H('#3a2228'));
@@ -489,10 +499,10 @@ function buildCat(o){
       Lh=0.6+0.55*sm(0.02,-0.08,hl[1])*sm(0.07,0.12,Math.abs(hl[0]));
       Lh*=1-0.5*sm(0.04,0.1,hl[2]);
       var earZ=sm(0.09,0.13,hl[1])*sm(0.05,0.08,Math.abs(hl[0]));Lh=lerp(Lh,nz_>0.15?0.1:0.3,earZ);
-      for(var e2=0;e2<2;e2++)Lh*=sm(1.4,2.5,len3(sub(p,eyeC[e2]))/er);
-      Lh*=sm(1.2,3.6,len3(sub(p,nz.p))/r(.016*Hf));
-      Lh*=sm(0.9,1.9,len3(sub(p,add(mTop,[0,-r(.02*Hf),0])))/r(.045*Hf));
-      for(e2=0;e2<blushP.length;e2++){var bd=sub(p,blushP[e2]),bq=Math.sqrt(bd[0]*bd[0]*0.45+bd[1]*bd[1]+bd[2]*bd[2]*0.45)/r(.04*Hf),bk=0.42*sm(1.25,0.35,bq);
+      for(var e2=0;e2<2;e2++)Lh*=sm(1.12,1.9,len3(sub(p,eyeC[e2]))/er);
+      Lh*=sm(1.0,2.4,len3(sub(p,nz.p))/r(.016*Hf));
+      Lh*=sm(0.55,1.25,len3(sub(p,add(mTop,[0,-r(.02*Hf),0])))/r(.045*Hf));
+      for(e2=0;e2<blushP.length;e2++){var bd=sub(p,blushP[e2]),bq=Math.sqrt(bd[0]*bd[0]*0.45+bd[1]*bd[1]+bd[2]*bd[2]*0.45)/r(.04*Hf),bk=(o.blushK===undefined?0.42:o.blushK)*sm(1.25,0.35,bq);
         m.C[ci]+=(o.blush[0]-m.C[ci])*bk;m.C[ci+1]+=(o.blush[1]-m.C[ci+1])*bk;m.C[ci+2]+=(o.blush[2]-m.C[ci+2])*bk;}
     }else if(z<-0.36&&y>0.26)Lh=1.3;
     else{Lh=lerp(0.3,1,sm(0.05,0.22,y));if(z>0.12&&y>0.2&&y<0.44)Lh=1.25;Lh*=sm(0.008,0.035,y);
@@ -507,7 +517,7 @@ function buildCat(o){
 /* ================= pose controller ================= */
 var CP={
   stand:{py:.34,pz:-.2,pitch:0,cp:0,fz:0,fG:1,frel:[0,-.24,.03],bz:.02,bG:1,brel:[0,-.24,0],tailUp:0.1},
-  sit:{py:.155,pz:-.17,pitch:-0.6,cp:-0.2,fz:.01,fG:1,frel:[0,-.24,.03],bz:.15,bG:1,brel:[0,-.2,.1],tailUp:-0.4},
+  sit:{py:.11,pz:-.17,pitch:-0.6,cp:-0.45,sd:0.09,fz:.01,fG:1,frel:[0,-.24,.03],bz:.15,bG:1,brel:[0,-.2,.1],tailUp:-0.4},
   crouch:{py:.25,pz:-.2,pitch:.05,cp:.05,fz:-.02,fG:1,frel:[0,-.2,.03],bz:.07,bG:1,brel:[0,-.2,.05],tailUp:-0.1},
   jump:{py:.34,pz:-.2,pitch:-.2,cp:0,fz:0,fG:0,frel:[0,-.15,.17],bz:0,bG:0,brel:[0,-.17,-.16],tailUp:0.3},
   tuck:{py:.34,pz:-.2,pitch:.05,cp:0,fz:0,fG:0,frel:[0,-.12,.06],bz:0,bG:0,brel:[0,-.13,.07],tailUp:0.1},
@@ -518,7 +528,8 @@ var CP={
   stretch:{py:.3,pz:-.2,pitch:.42,cp:.12,fz:.24,fG:1,frel:[0,-.2,.1],bz:0,bG:1,brel:[0,-.2,0],tailUp:0.6}
 };
 function catState(){var s={eye:['open','open'],pup:[0.7,1],eyeS:1,blep:0,earO:0,earF:0,mouth:0,hy:0,hp:0,tilt:0,blink:1,tailSw:0.4,tailCurl:0,sq:0,gAmp:0,gPh:0,ovL:null,ovR:null,ovLw:0,ovRw:0,tailT:0,feet:[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],footW:[0,0,0,0],scap:[0,0],flex:0,bob:null};var P=CP.sit;for(var k in P)s[k]=Array.isArray(P[k])?P[k].slice():P[k];return s}
-function toCP(st,P,k){for(var key in P){var v=P[key];if(Array.isArray(v)){for(var i=0;i<3;i++)st[key][i]+=(v[i]-st[key][i])*k}else st[key]+=(v-st[key])*k}}
+function toCP(st,P,k){for(var key in P){var v=P[key];if(Array.isArray(v)){for(var i=0;i<3;i++)st[key][i]+=(v[i]-st[key][i])*k}else st[key]+=(v-st[key])*k}
+  if(P.lat===undefined)st.lat=(st.lat||0)*(1-k);if(P.twist===undefined)st.twist=(st.twist||0)*(1-k);}
 var GAIT=[0.25,0.75,0,0.5]; // FL FR BL BR: lateral-sequence walk LH→LF→RH→RF, as cats walk
 /* rigid matrix -> unit dual quaternion (real xyzw, dual xyzw) */
 function dqOf(m,o,k){var a=m[0],b=m[5],c=m[10],tr=a+b+c,x,y,z,w,S;
@@ -535,17 +546,19 @@ function poseCat(c,st,M0,t){
   var bob=st.bob!==null&&st.bob!==undefined?st.bob:st.gAmp*0.012*S*Math.abs(Math.sin(TAU*st.gPh*2));
   var Sp=M(T(0,st.py*S+bob,st.pz*S),RX(st.pitch),T(ng(J.P0)));
   var br=0.012*Math.sin(t*2.1+S);
-  var Sl=M(Sp,T(J.L0),RX(st.cp*0.5+fl*0.55),T(ng(J.L0)));
-  var St=M(Sl,T(J.T0),RX(st.cp*0.5+fl*0.45+br),T(ng(J.T0)));
+  var la=st.lat||0,tw=st.twist||0;
+  var Sl=M(Sp,T(J.L0),RX(st.cp*0.5+fl*0.55),RY(la*0.56),RZ(tw*0.5),T(ng(J.L0)));
+  var St=M(Sl,T(J.T0),RX(st.cp*0.5+fl*0.45+br),RY(la*0.56),RZ(tw*0.5),T(ng(J.T0)));
   var comp=-(st.pitch+st.cp+fl)*0.95,hy=Math.max(-0.85,Math.min(0.85,st.hy));
-  var Sn=M(St,T(J.N0),RX(comp*0.5),RY(hy*0.45),T(ng(J.N0)));
+  var Sn=M(St,T(J.N0),RX(comp*0.5),RY(hy*0.45+la*0.45),T(ng(J.N0)));
   var Sh=M(Sn,T(J.HN),RX(comp*0.5),RY(hy*0.55),RX(st.hp),RZ(st.tilt),T(ng(J.HN)));
   var out=[Sp,Sl,St,Sn,Sh],prev=Sp,tt=st.tailT,A=st.tailSw,cu=st.tailCurl;
-  for(var i=0;i<5;i++){var jt=J.TL[i];prev=M(prev,T(jt),RX(st.tailUp*(0.36-0.05*i)+0.035*i),RY(Math.sin(tt-i*0.55)*A*(0.42+0.18*i)+cu*(0.4+0.17*i)),T(ng(jt)));out.push(prev);}
+  for(var i=0;i<5;i++){var jt=J.TL[i];prev=M(prev,T(jt),RX(st.tailUp*(0.36-0.05*i)+0.035*i),RY(Math.sin(tt-i*0.55)*A*(0.42+0.18*i)+cu*(0.4+0.17*i)-la*0.12),T(ng(jt)));out.push(prev);}
   var Rt=rotOf(St),Rp=rotOf(Sp),feet=[],FT=st.feet,FW=st.footW;
   function leg(i){var front=i<2,s=i%2,A=front?J.FS[s]:J.BH[s],B=front?J.FE[s]:J.BK[s],Cc=front?J.FW[s]:J.BA[s],Dd=front?J.FP[s]:J.BP[s],
       par=front?St:Sp,Rpar=front?Rt:Rp,Hj=xf(par,A);
     if(front&&st.scap)Hj=add(Hj,rv(Rpar,[0,st.scap[s]*S,0]));
+    if(front&&st.sd)Hj=add(Hj,[0,-st.sd*S,0]); /* sitting: the shoulder blades slide, the forelegs reach further down */
     var a=len3(sub(B,A)),b=len3(sub(Cc,B)),cl=len3(sub(Dd,Cc)),rel=front?st.frel:st.brel,G=front?st.fG:st.bG,gz=front?st.fz:st.bz;
     var gt=[Hj[0]*0.97,Dd[1],Hj[2]+gz*S+(Dd[2]-A[2])*0.6];
     if(st.gAmp>0.001&&!(FW&&FW[i]>0.01)){var f=st.gPh+GAIT[i];gt[2]+=-0.1*S*st.gAmp*Math.cos(TAU*f);gt[1]+=0.06*S*st.gAmp*Math.max(0,Math.sin(TAU*f));}
@@ -597,7 +610,7 @@ function fitPoses(c){
   function shoulderY(P){var st=catState();for(var k in P)st[k]=Array.isArray(P[k])?P[k].slice():P[k];var J=c.J,S=c.S;
     var Sp=M(T(0,st.py*S,st.pz*S),RX(st.pitch),T(ng(J.P0))),St=M(Sp,T(J.L0),RX(st.cp*0.5),T(ng(J.L0)),T(J.T0),RX(st.cp*0.5),T(ng(J.T0)));return xf(St,J.FS[0])[1]}
   var reach=(c.La[0]+c.La[1])*0.96+c.J.FW[0][1],lo=-1.2,hi=0.2,P={};for(var k in CP.sit)P[k]=CP.sit[k];
-  for(var i=0;i<30;i++){P.pitch=(lo+hi)/2;if(shoulderY(P)>reach)lo=P.pitch;else hi=P.pitch;}
+  for(var i=0;i<30;i++){P.pitch=(lo+hi)/2;if(shoulderY(P)>reach+(P.sd||0)*c.S)lo=P.pitch;else hi=P.pitch;}
   var o={};for(k in CP)o[k]=CP[k];o.sit=P;
   var bg={};for(k in CP.beg)bg[k]=CP.beg[k];var hipY=(c.Lb[0]+c.Lb[1])*0.86+c.J.BA[0][1];bg.py=hipY/c.S+0.02;o.beg=bg;
   var ml={},mm={};for(k in bg){ml[k]=Array.isArray(bg[k])?bg[k].slice():bg[k];mm[k]=Array.isArray(bg[k])?bg[k].slice():bg[k];}

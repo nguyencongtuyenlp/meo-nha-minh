@@ -106,7 +106,36 @@ input[type=text]:focus{border-color:#ff8aa5}
 @keyframes hop{50%{transform:translateY(-10px)}}
 .hf{position:fixed;z-index:7;pointer-events:none;font-size:20px;transform:translate(-50%,0);animation:hf .95s ease-out forwards}
 @keyframes hf{to{transform:translate(-50%,-70px) scale(1.35);opacity:0}}
+/* HUD can be tucked away: only the corner buttons stay */
+#stats,#tb,#tr,#chip{transition:opacity .35s,transform .35s}
+body.hud-off #stats{opacity:0;transform:translateX(-24px);pointer-events:none}
+body.hud-off #tb{opacity:0;transform:translate(-50%,24px);pointer-events:none}
+body.hud-off #tr{opacity:0;transform:translateY(-24px);pointer-events:none}
+body.hud-off #chip{opacity:0;pointer-events:none}
+body.hud-off #bMenu,body.hud-off #bSound,body.hud-off #bFollow{opacity:.55}
+body.hud-off #hint{bottom:calc(14px + var(--sb))}
+#stats{cursor:pointer}
+#stats.mini{width:auto;padding:7px}
+#stats.mini .st{grid-template-columns:18px 54px}
+#stats.mini .st .lbl{display:none}
 #blinkfx{position:fixed;inset:0;z-index:15;pointer-events:none;display:none}
+/* studio */
+body.studio #stats,body.studio #tb,body.studio #tr,body.studio #chip,body.studio #bHud,body.studio #bFollow,body.studio #bubble{display:none}
+#studio{position:fixed;z-index:8;right:calc(10px + var(--sr));top:calc(8px + var(--st));bottom:calc(8px + var(--sb));width:min(320px,46vw);border-radius:18px;display:flex;flex-direction:column;overflow:hidden}
+#studio[hidden]{display:none}
+#studio.fold{bottom:auto}#studio.fold .sbody{display:none}
+#studio .sh{display:flex;justify-content:space-between;align-items:center;padding:9px 12px 6px;font-size:17px}
+#studio .sx{width:30px;height:30px;border-radius:9px;background:rgba(74,53,64,.07);font-weight:800;margin-left:4px}
+#studio .sbody{overflow:auto;-webkit-overflow-scrolling:touch;padding:0 12px 12px}
+#studio .sinfo{font-size:11px;font-weight:800;color:var(--ink2);background:rgba(74,53,64,.06);border-radius:9px;padding:5px 8px;font-variant-numeric:tabular-nums}
+#studio .sl2{font-size:12px;font-weight:800;margin:10px 0 5px}#studio .sl2 small{color:var(--ink2);font-weight:700}
+#studio .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+#studio .sgrid button,#studio .sbtn{font-size:12px;font-weight:800;padding:7px 6px;border-radius:10px;background:#fff;box-shadow:0 2px 8px -5px rgba(74,53,64,.6);text-align:center;line-height:1.15}
+#studio .sgrid button.on{background:#ffe3ea;color:#e2476f;box-shadow:inset 0 0 0 2px #ffb3c4}
+#studio .sseg{display:flex;flex-wrap:wrap}#studio .sseg button{flex:1;padding:6px 4px;font-size:12px}
+#studio .sl{display:grid;grid-template-columns:96px 1fr 52px;align-items:center;gap:6px;font-size:12px;font-weight:800;margin:4px 0}
+#studio .sl input{width:100%;accent-color:#ff8aa5}#studio .sl b{font-size:11px;color:var(--ink2);text-align:right}
+@media (max-height:420px){#studio{width:min(300px,44vw)}#studio .sgrid{grid-template-columns:1fr 1fr 1fr}#studio .sgrid button{font-size:11px;padding:6px 4px}}
 #blinkfx i{position:absolute;left:0;right:0;height:50%;background:#1d1418;transform:scaleY(0);transition:transform .35s ease-in-out}
 #blinkfx i:first-child{top:0;transform-origin:top}
 #blinkfx i:last-child{bottom:0;transform-origin:bottom}
@@ -133,6 +162,8 @@ input[type=text]:focus{border-color:#ff8aa5}
   <symbol id="i-blink" viewBox="0 0 24 24"><path d="M3 11c3 4 15 4 18 0"/><path d="M6 13.5l-1.5 2.5M10 14.8l-.7 2.7M14 14.8l.7 2.7M18 13.5l1.5 2.5"/></symbol>
   <symbol id="i-photo" viewBox="0 0 24 24"><path d="M4 8h3.5l2-2.5h5L16.5 8H20v11H4z"/><circle cx="12" cy="13.5" r="3.4"/></symbol>
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/><path d="M9 7.5h6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-eyeoff" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
   <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></symbol>
 </svg>
 
@@ -143,6 +174,7 @@ input[type=text]:focus{border-color:#ff8aa5}
   <button class="ib glass" id="bMenu" aria-label="Menu"><svg class="i"><use href="#i-menu"/></svg></button>
   <button class="ib glass" id="bSound" aria-label="Âm thanh"><svg class="i"><use href="#i-sound"/></svg></button>
   <button class="ib glass" id="bFollow" aria-label="Camera theo mèo"><svg class="i"><use href="#i-follow"/></svg></button>
+  <button class="ib glass" id="bHud" aria-label="Ẩn hoặc hiện các nút" title="Ẩn/hiện các nút (phím H)"><svg class="i"><use href="#i-eye"/></svg></button>
   <div class="glass" id="chip"><b id="cName">Mochi</b><small id="cAge">6 tuần · Mèo con</small></div>
 </div>
 <div class="glass" id="tr">
@@ -173,13 +205,14 @@ input[type=text]:focus{border-color:#ff8aa5}
 
 <div class="modal" id="mMenu" hidden><div class="card">
   <div class="row" style="justify-content:space-between"><h2>Cài đặt</h2><button class="btn ghost" data-close>Đóng</button></div>
+  <button class="btn" id="bStudio" style="margin-top:10px;width:100%">🐾 Phòng xem mèo: xoay 360°, xem từng cử chỉ, chỉnh dáng</button>
   <p class="sub" style="margin-top:10px">Tên bé</p>
   <div class="row"><input type="text" id="nameEdit" maxlength="14"></div>
   <p class="sub" style="margin-top:12px">Tốc độ lớn (từ mèo con đến trưởng thành)</p>
   <div class="seg" id="speedSeg"><button data-v="1">1 ngày</button><button data-v="7">7 ngày</button><button data-v="30">30 ngày</button></div>
   <p class="sub" style="margin-top:12px">Đồ hoạ</p>
   <div class="seg" id="qSeg"><button data-v="0">Tiết kiệm pin</button><button data-v="1">Cân bằng</button><button data-v="2">Đẹp nhất</button></div>
-  <p class="sub" style="margin-top:14px">Cách chơi: vuốt trên nền để xoay phòng, chụm hai ngón để phóng to. Chọn công cụ ở thanh dưới; kéo tay trên bé mèo để vuốt ve. Mỗi tập tính mới bé làm sẽ được ghi vào Sổ tập tính.</p>
+  <p class="sub" style="margin-top:14px">Cách chơi: vuốt trên nền để xoay phòng, chụm hai ngón để phóng to. Chọn công cụ ở thanh dưới; kéo tay trên bé mèo để vuốt ve. Mỗi tập tính mới bé làm sẽ được ghi vào Sổ tập tính. Nút con mắt ở góc trái (hoặc phím H) ẩn/hiện các nút; chạm vào bảng chỉ số để thu gọn.</p>
   <div class="row" style="margin-top:12px"><button class="btn ghost" id="bReset">Nuôi bé mới (xoá tiến trình)</button></div>
 </div></div>
 
@@ -189,12 +222,28 @@ input[type=text]:focus{border-color:#ff8aa5}
   <div class="row"><button class="btn" id="bShare">Chia sẻ / Lưu</button><span class="sub" style="margin:0">Hoặc nhấn giữ ảnh để lưu</span></div>
 </div></div>
 
+<aside id="studio" class="glass" hidden>
+  <div class="sh"><b class="baloo">Phòng xem mèo</b><span><button id="sFold" class="sx" aria-label="Thu gọn">▾</button><button id="sClose" class="sx" aria-label="Đóng">✕</button></span></div>
+  <div class="sbody">
+  <p class="sinfo" id="sInfo"></p>
+  <p class="sl2">Cử chỉ (lặp lại liên tục)</p>
+  <div class="sgrid" id="sGest"></div>
+  <p class="sl2">Tốc độ <small>· phím cách = dừng, → = khung kế</small></p>
+  <div class="seg sseg" id="sSpeed"><button data-v="0">Dừng</button><button data-v="0.1">0.1×</button><button data-v="0.25">0.25×</button><button data-v="0.5">0.5×</button><button data-v="1">1×</button></div>
+  <div class="row" style="gap:6px;margin-top:6px"><button class="sbtn" id="sStep">+1 khung</button><button class="sbtn" id="sStepB">+4 khung</button><button class="sbtn" id="sSnap">📸 Chụp khung này</button></div>
+  <p class="sl2">Góc nhìn <small>· vuốt để xoay, chụm/cuộn để zoom</small></p>
+  <div class="seg sseg" id="sView"><button data-v="front">Trước</button><button data-v="side">Nghiêng</button><button data-v="back">Sau</button><button data-v="top">Trên</button><button id="sSpin">Tự xoay</button></div>
+  <p class="sl2">Hình dáng <small id="sBusy" hidden>· đang dựng lại…</small></p>
+  <div id="sShape"></div>
+  <button class="sbtn" id="sReset" style="margin-top:6px">Về dáng mặc định</button>
+  </div>
+</aside>
 <div id="rotate"><svg class="i"><use href="#i-phone"/></svg><div class="baloo" style="font-size:22px">Xoay ngang điện thoại nha</div><div style="color:#8a7280">Căn phòng của bé rộng lắm, màn ngang mới vừa đó 🐾</div></div>
 <div id="loading"><div class="paw">🐾</div><div id="loadMsg">Đang dọn phòng cho bé…</div></div>
 
-<script src="cat3d.js?v=19"></script>
-<script src="coats.js?v=19"></script>
-<script src="game.js?v=19"></script>
+<script src="cat3d.js?v=20"></script>
+<script src="coats.js?v=20"></script>
+<script src="game.js?v=20"></script>
 <script>
 if('serviceWorker' in navigator&&location.protocol!=='file:'){addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
 </script>
