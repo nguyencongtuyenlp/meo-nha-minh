@@ -263,7 +263,7 @@ var cam={yaw:-0.6,pitch:0.7,dist:11,tgt:[0,1.1,0.4],yawT:-0.6,pitchT:0.7,distT:1
 function updCam(dt){var k=1-Math.pow(0.002,dt),nearK=clamp((cam.dist-2.4)/6.5,0,1);if(cam.follow&&catReady){var ft=[cat.x,cat.y+lerp(0.55,0.45,nearK)*SC,cat.z];cam.tgt=mix(cam.tgt,ft,1-Math.pow(0.05,dt)).slice(0,3);}else cam.tgt=mix(cam.tgt,[0,1.1,0.4],1-Math.pow(0.1,dt)).slice(0,3);
   if(STUDIO.on){cam.pitchT=clamp(cam.pitchT,-0.05,1.45);cam.distT=clamp(cam.distT,1.4,12);if(STUDIO.spin&&!drag)cam.yawT+=dt*0.5;}else{cam.pitchT=clamp(cam.pitchT,cam.follow?lerp(0.08,0.62,nearK):0.16,1.25);cam.distT=clamp(cam.distT,cam.follow?2.4:4.5,34);}cam.yaw=angLerp(cam.yaw,cam.yawT,k);cam.pitch+=(cam.pitchT-cam.pitch)*k;cam.dist+=(cam.distT-cam.dist)*k;
   var cp=Math.cos(cam.pitch);cam.eye=[cam.tgt[0]+cam.dist*Math.sin(cam.yaw)*cp,cam.tgt[1]+cam.dist*Math.sin(cam.pitch),cam.tgt[2]+cam.dist*Math.cos(cam.yaw)*cp];
-  var asp=W_/H_,fov=(asp<1.2?50:36)*PI/180;cam.V=C.lookAt(cam.eye,cam.tgt,[0,1,0]);cam.VP=mul(C.persp(fov,asp,0.35,90),cam.V);E.setProj(0.35,90,fov,asp);E.setPost({foc:cam.dist,dof:cam.follow&&Q.lvl>1&&!STUDIO.on?1.6*(1-nearK)*(1-nearK):0});cam.iVP=inv4(cam.VP);}
+  var asp=W_/H_,fov=(asp<1.2?50:36)*PI/180;cam.V=C.lookAt(cam.eye,cam.tgt,[0,1,0]);cam.VP=mul(C.persp(fov,asp,0.35,90),cam.V);E.setProj(0.35,90,fov,asp);E.setPost({foc:cam.dist,dof:0}); /* no depth-of-field: close-ups stay sharp everywhere */cam.iVP=inv4(cam.VP);}
 function ray(sx,sy){var x=sx/W_*2-1,y=1-sy/H_*2,a=xf4(cam.iVP,[x,y,-1]),b=xf4(cam.iVP,[x,y,1]);return {o:[a[0],a[1],a[2]],d:nrm(sub([b[0],b[1],b[2]],[a[0],a[1],a[2]]))}}
 function rayPlaneY(r,y){if(Math.abs(r.d[1])<1e-5)return null;var t=(y-r.o[1])/r.d[1];return t>0?add(r.o,scl(r.d,t)):null}
 function raySphere(r,c,rad){var oc=sub(r.o,c),b=dot(oc,r.d),q=dot(oc,oc)-rad*rad,h=b*b-q;if(h<0)return -1;var t=-b-Math.sqrt(h);return t>0?t:-1}
@@ -289,7 +289,7 @@ function catHead(){return cat.r?cat.r.headPos:[cat.x,cat.y+0.6*SC,cat.z]}
 
 /* mesh loading: worker + IndexedDB cache */
 var worker=null,wq={},wid=0;
-try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=22');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
+try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=23');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
   worker.onerror=function(){worker=null;for(var k in wq){var q=wq[k];delete wq[k];q.fallback()}}}}catch(e){worker=null}
 function buildCatAsync(coat,k,sh){return new Promise(function(res,rej){function local(){setTimeout(function(){try{res(window.buildPacked(coat,k,sh))}catch(e){rej(e)}},30)}
   if(worker){var id=++wid;wq[id]={res:res,rej:rej,fallback:local};worker.postMessage({id:id,coat:coat,k:k,shape:sh});}else local();})}
@@ -889,7 +889,7 @@ function frame(){requestAnimationFrame(frame);if(document.hidden)return;if(windo
   if(SV){updWorld(dt,t);laserJitter(t);}updCam(dt);render(t);
   if(SV&&catReady){updHud();statT+=dt;if(statT>0.4){statT=0;updStats();}saveT+=dt;if(saveT>5){saveT=0;save();}growT+=dt;if(growT>20){growT=0;checkGrowth();}}
   /* adaptive resolution: if the phone struggles, render fewer pixels */
-  frames++;if(rt-fpsT>2.5&&!window.__noAdapt){var fps=frames/(rt-fpsT);frames=0;fpsT=rt;if(fps<24&&Q.scale>0.8){Q.scale*=0.88;resize();}else if(fps>52&&Q.scale<1){Q.scale=Math.min(1,Q.scale*1.08);resize();}}
+  frames++;if(rt-fpsT>2.5&&!window.__noAdapt){var fps=frames/(rt-fpsT);frames=0;fpsT=rt;if(fps<24&&Q.scale>0.8&&Q.lvl<2){Q.scale*=0.88;resize();}else if(fps>52&&Q.scale<1){Q.scale=Math.min(1,Q.scale*1.08);resize();}}
   var bg=$('bg');var key=ENV.bgT.map(function(v){return (v*20|0)}).join();if(bg._k!==key){bg._k=key;bg.style.background='linear-gradient(180deg,'+rgb(ENV.bgT)+','+rgb(ENV.bgB)+')';}}
 addEventListener('visibilitychange',function(){if(document.hidden){save();purrLevel(0)}else lastT=realNow()});
 addEventListener('pagehide',save);

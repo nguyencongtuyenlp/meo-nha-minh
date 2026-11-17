@@ -236,7 +236,7 @@ function makeEngine(cv){
       gl.bindFramebuffer(gl.FRAMEBUFFER,o.g0);bindT(0,o.d1);gl.uniform2f(PBL.u.uDir,0,(1+it)/o.bh);quadDraw(PBL);}}
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,w,h);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);use(PC);var c=PC.u;
     bindT(0,o.col);bindT(1,aoOn?o.aoT:white);bindT(2,blOn?o.b0:black);bindT(3,dfOn?o.dep:white);bindT(4,dfOn?o.d0:black);gl.uniform1i(c.uC,0);gl.uniform1i(c.uA,1);gl.uniform1i(c.uB,2);gl.uniform1i(c.uD,3);gl.uniform1i(c.uF,4);gl.uniform4fv(c.uPr,PROJ);gl.uniform1f(c.uFoc,POST.foc);gl.uniform1f(c.uDof,dfOn?POST.dof:0);
-    gl.uniform2f(c.uPx,1/w,1/h);gl.uniform2f(c.uPa,1/o.aw,1/o.ah);gl.uniform1f(c.uAOk,aoOn?1:0);gl.uniform1f(c.uBk,blOn?0.32:0);gl.uniform1f(c.uT,t);gl.uniform1f(c.uVig,0.32);gl.uniform1f(c.uFx,POST.fx?1:0);
+    gl.uniform2f(c.uPx,1/w,1/h);gl.uniform2f(c.uPa,1/o.aw,1/o.ah);gl.uniform1f(c.uAOk,aoOn?1:0);gl.uniform1f(c.uBk,blOn?0.2:0);gl.uniform1f(c.uT,t);gl.uniform1f(c.uVig,0.18);gl.uniform1f(c.uFx,POST.fx?1:0);
     quadDraw(PC);gl.activeTexture(gl.TEXTURE0);gl.depthMask(true);}
   var E={gl:gl,ok:!sceneBad,
     upload:function(m){return {p:buf(m.P,Float32Array),n:buf(m.N,Float32Array),c:buf(m.C,Float32Array),t:buf(m.UV,Float32Array),r:m.R&&m.R.length?buf(m.R,Float32Array):null,i:buf(m.I,U32?Uint32Array:Uint16Array,gl.ELEMENT_ARRAY_BUFFER),cnt:m.I.length};},
