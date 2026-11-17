@@ -519,7 +519,7 @@ function buildCat(o){
 /* ================= pose controller ================= */
 var CP={
   stand:{py:.34,pz:-.2,pitch:0,cp:0,fz:0,fG:1,frel:[0,-.24,.03],bz:.02,bG:1,brel:[0,-.24,0],tailUp:0.1},
-  sit:{py:.11,pz:-.17,pitch:-0.6,cp:-0.7,sd:0.075,nk:0.65,nd:0.09,ts:0.4,bsp:0.06,fz:-.08,fG:1,frel:[0,-.24,.03],bz:.15,bG:1,brel:[0,-.2,.16],tailUp:-0.4},
+  sit:{py:.11,pz:-.17,pitch:-0.6,cp:-0.7,sd:0.075,nk:0.7,nd:0.1,ts:0.25,bsp:0.02,fz:0,fG:1,frel:[0,-.24,.03],bz:.15,bG:1,brel:[0,-.2,.16],tailUp:-0.4},
   crouch:{py:.25,pz:-.2,pitch:.05,cp:.05,fz:-.02,fG:1,frel:[0,-.2,.03],bz:.07,bG:1,brel:[0,-.2,.05],tailUp:-0.1},
   jump:{py:.34,pz:-.2,pitch:-.2,cp:0,fz:0,fG:0,frel:[0,-.15,.17],bz:0,bG:0,brel:[0,-.17,-.16],tailUp:0.3},
   tuck:{py:.34,pz:-.2,pitch:.05,cp:0,fz:0,fG:0,frel:[0,-.12,.06],bz:0,bG:0,brel:[0,-.13,.07],tailUp:0.1},
