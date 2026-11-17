@@ -40,7 +40,7 @@ function catParams(coat,k,shape){
   return {S:0.8+0.8*g, fat:(1.0+0.22*g)*sh.fat, head:(1.5-0.3*g)*L(0.8,1.02)*sh.head, leg:0.9+0.16*g, legL:L(1.1,0.95)*sh.leg, tail:0.82+0.4*g, tailL:sh.tail,
     body:L(1.06,0.95)*sh.body, ear:L(1.04,0.94)*sh.ear, lash:L(0.2,1), blushK:L(0,0.4), cell:0.0145,
     color:cf.color, iris:iris, nose:H(cf.nose), lip:H(cf.lip), whisker:H(cf.whisker), blush:H(cf.blush), bean:H(cf.bean),
-    eyeK:(1.16-0.12*g)*L(0.76,1.0)*sh.eye, shells:12, furLen:0.024-0.004*g, furDen:300};
+    eyeK:(1.16-0.12*g)*L(0.76,1.0)*sh.eye, shells:12, furLen:(0.015-0.003*g)*L(0.85,1.15), furDen:380};
 }
 /* plain, clonable copy of a built cat (no functions), with typed arrays */
 function pack(o){

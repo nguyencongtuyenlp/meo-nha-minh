@@ -289,14 +289,14 @@ function catHead(){return cat.r?cat.r.headPos:[cat.x,cat.y+0.6*SC,cat.z]}
 
 /* mesh loading: worker + IndexedDB cache */
 var worker=null,wq={},wid=0;
-try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=20');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
+try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=21');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
   worker.onerror=function(){worker=null;for(var k in wq){var q=wq[k];delete wq[k];q.fallback()}}}}catch(e){worker=null}
 function buildCatAsync(coat,k,sh){return new Promise(function(res,rej){function local(){setTimeout(function(){try{res(window.buildPacked(coat,k,sh))}catch(e){rej(e)}},30)}
   if(worker){var id=++wid;wq[id]={res:res,rej:rej,fallback:local};worker.postMessage({id:id,coat:coat,k:k,shape:sh});}else local();})}
 var dbp=null;function db(){if(dbp)return dbp;dbp=new Promise(function(res){try{var r=indexedDB.open('meo-nha-mesh',1);r.onupgradeneeded=function(){r.result.createObjectStore('m')};r.onsuccess=function(){res(r.result)};r.onerror=function(){res(null)}}catch(e){res(null)}});return dbp}
 function idbGet(k){return db().then(function(d){return d?new Promise(function(res){try{var q=d.transaction('m').objectStore('m').get(k);q.onsuccess=function(){res(q.result||null)};q.onerror=function(){res(null)}}catch(e){res(null)}}):null})}
 function idbPut(k,v){db().then(function(d){if(d)try{d.transaction('m','readwrite').objectStore('m').put(v,k)}catch(e){}})}
-var MESHV='m9';
+var MESHV='m10';
 function curShape(){return SV&&SV.shape?SV.shape:null}
 function getCat(coat,k,sh){if(sh===undefined)sh=curShape();var key=MESHV+'-'+coat+'-'+k+'-'+window.shapeKey(sh);return idbGet(key).then(function(v){return v||buildCatAsync(coat,k,sh).then(function(c){idbPut(key,c);return c})})}
 function growG(){return clamp((Date.now()-SV.born)/(SV.grow*864e5),0,1)}

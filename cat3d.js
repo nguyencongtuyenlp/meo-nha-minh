@@ -89,7 +89,7 @@ var VS3='attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec4 aB
  'rk=uQ[i2*2];sg=dot(r0,rk)<0.?-aW.z:aW.z;q+=rk*sg;d+=uQ[i2*2+1]*sg;'+
  'rk=uQ[i3*2];sg=dot(r0,rk)<0.?-aW.w:aW.w;q+=rk*sg;d+=uQ[i3*2+1]*sg;'+
  'float l=length(q);q/=l;d/=l;'+
- 'vR=aP;vF=aC.a;vSh=uSh;vM=vec2(0.6,0.);vec3 pp=aP+(aN*uSh+vec3(0.,-0.32,-0.42)*uSh*uSh)*(uFL*aC.a);'+
+ 'vR=aP;vF=aC.a;vSh=uSh;vM=vec2(0.6,0.);vec3 pp=aP+(aN*uSh*0.55+vec3(0.,-0.38,-0.5)*uSh*(0.35+0.65*uSh))*(uFL*aC.a);'+
  'vec3 p=pp+2.*cross(q.xyz,cross(q.xyz,pp)+q.w*pp)+2.*(q.w*d.xyz-d.w*q.xyz+cross(q.xyz,d.xyz));vec3 n=aN+2.*cross(q.xyz,cross(q.xyz,aN)+q.w*aN);'+
  /* fur is combed back and down the body: that direction, kept tangent to the skin, drives the anisotropic highlight */
  'vec3 cb=vec3(0.,-0.32,-0.42);vec3 tg=cb-aN*dot(aN,cb);tg=tg+2.*cross(q.xyz,cross(q.xyz,tg)+q.w*tg);'+
@@ -108,11 +108,11 @@ var FS1='#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\npreci
  'float ggx(float NH,float a2){float d=NH*NH*(a2-1.)+1.;return a2/(3.14159*d*d);}'+
  'void main(){vec3 n=normalize(vN);if(uFlip>0.5&&!gl_FrontFacing)n=-n;vec3 v=normalize(uCam-vW);'+
  'vec4 tx=texture2D(uTex,vT);vec3 b=mix(vC.rgb,tx.rgb,tx.a*uUseTex);float rough=clamp(vM.x,0.05,1.),kind=floor(vM.y+0.5),fl=0.,occ=1.;'+
- 'if(uFur>0.5&&uFD>0.){vec3 q=vR*uFD;vec3 fc=fract(q)-0.5;float hs=hsh(floor(q));fl=smoothstep(0.02,0.14,vF);'+
+ 'if(uFur>0.5&&uFD>0.){vec3 ca=vec3(0.,-0.6,-0.8),cb=vec3(1.,0.,0.),cc=vec3(0.,0.8,-0.6);vec3 q=vec3(dot(vR,ca)*0.2,dot(vR,cb),dot(vR,cc))*uFD;vec3 fc=fract(q)-0.5;fc.x*=0.25;float hs=hsh(floor(q));fl=smoothstep(0.02,0.14,vF);'+
  '\n#ifdef DER\nif(vSh>0.001&&length(fwidth(vW))>2.6*length(fwidth(vR))+1e-5)discard;\n#endif\n'+
  'if(vSh>0.001&&fl>0.){float ln=mix(0.62,1.,hs)*(1.-dot(fc,fc)*1.5);if(vSh>ln)discard;}'+
  /* strands are dark at the root and catch light at the tip; the undercoat is shadowed by the hair above it */
- 'float h2=hsh(floor(vR*uFD*0.37)+7.);b*=mix(1.,mix(0.7,1.06,vSh),fl)*(1.+((hs-0.5)*0.05+(h2-0.5)*0.04)*fl);occ=mix(1.,mix(0.68,1.,vSh),fl);}'+
+ 'float h2=hsh(floor(vec3(dot(vR,ca)*0.08,dot(vR,cb),dot(vR,cc))*uFD*0.45)+7.);float lum=dot(b,vec3(0.3,0.59,0.11));b*=mix(1.,mix(mix(0.7,0.88,smoothstep(0.55,0.9,lum)),1.05,vSh),fl)*(1.+((hs-0.5)*0.05+(h2-0.5)*0.04)*fl);occ=mix(1.,mix(mix(0.68,0.85,smoothstep(0.55,0.9,lum)),1.,vSh),fl);}'+
  'else if(kind>0.5&&uFur<0.5){'+
  ' if(kind<1.5){float g=fbm(vec3(vW.x*1.3,vW.y*34.,vW.z*34.));b*=0.84+0.3*g;rough*=mix(1.15,0.8,g);n=bump(n,vW*vec3(4.,90.,90.),0.05);}'+
  ' else if(kind<2.5){float w=sin(vW.x*240.)*sin(vW.z*240.+vW.y*240.);float fz=vn(vW*70.);b*=0.88+0.07*w*w+0.14*fz;n=bump(n,vW*150.,0.35);}'+
@@ -410,7 +410,7 @@ function buildCat(o){
   [0,1].forEach(function(i){
     D.add(sdRC(J.FS[i],J.FE[i],r(.05*Lf*Math.sqrt(F)),r(.038*Lf)),r(.05));D.add(sdRC(J.FE[i],J.FW[i],r(.036*Lf),r(.03*Lf)),r(.02));
     D.add(sdEL(mix(J.FW[i],J.FP[i],0.6).slice(0,3),[r(.039*Lf),r(.03*Lf),r(.05*Lf)]),r(.025));
-    D.add(sdRC(J.BH[i],J.BK[i],r(.078*Lf*Math.sqrt(F)),r(.05*Lf)),r(.05));D.add(sdRC(J.BK[i],J.BA[i],r(.042*Lf),r(.031*Lf)),r(.025));
+    D.add(sdRC(J.BH[i],J.BK[i],r(.095*Lf*Math.sqrt(F)),r(.055*Lf)),r(.06));D.add(sdRC(J.BK[i],J.BA[i],r(.042*Lf),r(.031*Lf)),r(.025));
     D.add(sdRC(J.BA[i],J.BP[i],r(.031*Lf),r(.029*Lf)),r(.015));D.add(sdEL(add(J.BP[i],v(0,.003,.004)),[r(.039*Lf),r(.03*Lf),r(.052*Lf)]),r(.022));});
   for(var ti=0;ti<5;ti++)D.add(sdRC(J.TL[ti],J.TL[ti+1],r((.045-.004*ti)*Tf),r((.041-.0035*ti)*Tf)),r(ti?0.012:0.04));
   var net=surfaceNets(D,r(o.cell||0.016));
@@ -519,7 +519,7 @@ function buildCat(o){
 /* ================= pose controller ================= */
 var CP={
   stand:{py:.34,pz:-.2,pitch:0,cp:0,fz:0,fG:1,frel:[0,-.24,.03],bz:.02,bG:1,brel:[0,-.24,0],tailUp:0.1},
-  sit:{py:.11,pz:-.17,pitch:-0.6,cp:-0.45,sd:0.09,nk:0.8,nd:0.05,fz:.01,fG:1,frel:[0,-.24,.03],bz:.15,bG:1,brel:[0,-.2,.1],tailUp:-0.4},
+  sit:{py:.11,pz:-.17,pitch:-0.6,cp:-0.7,sd:0.075,nk:0.8,nd:0.05,bsp:0.06,fz:.05,fG:1,frel:[0,-.24,.03],bz:.15,bG:1,brel:[0,-.2,.16],tailUp:-0.4},
   crouch:{py:.25,pz:-.2,pitch:.05,cp:.05,fz:-.02,fG:1,frel:[0,-.2,.03],bz:.07,bG:1,brel:[0,-.2,.05],tailUp:-0.1},
   jump:{py:.34,pz:-.2,pitch:-.2,cp:0,fz:0,fG:0,frel:[0,-.15,.17],bz:0,bG:0,brel:[0,-.17,-.16],tailUp:0.3},
   tuck:{py:.34,pz:-.2,pitch:.05,cp:0,fz:0,fG:0,frel:[0,-.12,.06],bz:0,bG:0,brel:[0,-.13,.07],tailUp:0.1},
@@ -531,7 +531,7 @@ var CP={
 };
 function catState(){var s={eye:['open','open'],pup:[0.7,1],eyeS:1,blep:0,earO:0,earF:0,mouth:0,hy:0,hp:0,tilt:0,blink:1,tailSw:0.4,tailCurl:0,sq:0,gAmp:0,gPh:0,ovL:null,ovR:null,ovLw:0,ovRw:0,tailT:0,feet:[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],footW:[0,0,0,0],scap:[0,0],flex:0,bob:null};var P=CP.sit;for(var k in P)s[k]=Array.isArray(P[k])?P[k].slice():P[k];return s}
 function toCP(st,P,k){for(var key in P){var v=P[key];if(Array.isArray(v)){for(var i=0;i<3;i++)st[key][i]+=(v[i]-st[key][i])*k}else st[key]+=(v-st[key])*k}
-  if(P.lat===undefined)st.lat=(st.lat||0)*(1-k);if(P.nk===undefined)st.nk=(st.nk===undefined?0.5:st.nk)+(0.5-(st.nk===undefined?0.5:st.nk))*k;if(P.nd===undefined)st.nd=(st.nd||0)*(1-k);if(P.twist===undefined)st.twist=(st.twist||0)*(1-k);}
+  if(P.lat===undefined)st.lat=(st.lat||0)*(1-k);if(P.bsp===undefined)st.bsp=(st.bsp||0)*(1-k);if(P.nk===undefined)st.nk=(st.nk===undefined?0.5:st.nk)+(0.5-(st.nk===undefined?0.5:st.nk))*k;if(P.nd===undefined)st.nd=(st.nd||0)*(1-k);if(P.twist===undefined)st.twist=(st.twist||0)*(1-k);}
 var GAIT=[0.25,0.75,0,0.5]; // FL FR BL BR: lateral-sequence walk LH→LF→RH→RF, as cats walk
 /* rigid matrix -> unit dual quaternion (real xyzw, dual xyzw) */
 function dqOf(m,o,k){var a=m[0],b=m[5],c=m[10],tr=a+b+c,x,y,z,w,S;
@@ -565,7 +565,8 @@ function poseCat(c,st,M0,t){
     var a=len3(sub(B,A)),b=len3(sub(Cc,B)),cl=len3(sub(Dd,Cc)),rel=front?st.frel:st.brel,G=front?st.fG:st.bG,gz=front?st.fz:st.bz;
     var gt=[Hj[0]*0.97,Dd[1],Hj[2]+gz*S+(Dd[2]-A[2])*0.6];
     if(st.gAmp>0.001&&!(FW&&FW[i]>0.01)){var f=st.gPh+GAIT[i];gt[2]+=-0.1*S*st.gAmp*Math.cos(TAU*f);gt[1]+=0.06*S*st.gAmp*Math.max(0,Math.sin(TAU*f));}
-    var rt=add(Hj,rv(Rpar,scl(rel,S))),F=mix(rt,gt,G).slice(0,3),contact=G;
+    var sgn=s?1:-1,spl=front?0:(st.bsp||0);if(spl){gt[0]+=sgn*spl*S;}
+    var rt=add(Hj,rv(Rpar,add(scl(rel,S),[sgn*spl*S,0,0]))),F=mix(rt,gt,G).slice(0,3),contact=G;
     if(FT&&FW&&FW[i]>0){F=mix(F,FT[i],FW[i]).slice(0,3);var lifted=sm(0.006*S,0.05*S,FT[i][1]-Dd[1]);contact=contact*(1-FW[i])+FW[i]*(1-lifted);}
     var ov=front?(s?st.ovR:st.ovL):null,ow=front?(s?st.ovRw:st.ovLw):0;if(ov&&ow>0){F=mix(F,ov,ow).slice(0,3);contact*=1-ow;}
     /* distal segment: lies along its standing direction while weight-bearing; in the air the paw hangs and the toes flex */
@@ -575,7 +576,7 @@ function poseCat(c,st,M0,t){
     var ratio=len3(sub(F,Hj))/(a+b+cl),flat=sm(0.78,0.5,ratio)*contact;
     if(flat>0)dd=nrm(mix(dd,front?[0,-0.6,0.8]:nrm([0,-0.12,1]),front?flat*0.4:flat));
     var W=sub(F,scl(dd,cl));
-    var hint=rv(Rpar,front?[0,0.1,-1]:[0,0.3,1]),k=ik2(Hj,W,a,b,hint);
+    var hint=rv(Rpar,front?[0,0.1,-1]:[sgn*spl*14,0.3,1]),k=ik2(Hj,W,a,b,hint); /* sitting: knees turn out so the haunches spread into a pear */
     var d0=rv(Rpar,sub(B,A)),d1=sub(k.K,Hj),Rs;
     if(front){var fw=rv(Rpar,[0,0.25,1]);Rs=M(rotTo(fw,d1),rotTo(d0,fw));}else Rs=rotTo(d0,d1);
     var R1=M(Rs,Rpar),S1=M(T(Hj),R1,T(ng(A)));
