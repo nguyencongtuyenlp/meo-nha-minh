@@ -30,7 +30,7 @@ function save(){if(!SV)return;SV.last=Date.now();try{localStorage.setItem(KEY,JS
 /* ======================= audio (all synthesized) ======================= */
 var AC=null,master=null,purrG=null;
 function ac(){if(!AC){var A=window.AudioContext||window.webkitAudioContext;if(!A)return null;try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}
-    AC=new A();master=AC.createGain();master.gain.value=SV&&SV.sound===false?0:0.8;master.connect(AC.destination);}
+    AC=new A();master=AC.createGain();master.gain.value=SV&&SV.sound===false?0:0.8;master.connect(AC.destination);loadMeows();}
   if(AC.state==='suspended')AC.resume();return AC}
 function setSound(on){if(SV)SV.sound=on;if(master)master.gain.setTargetAtTime(on?0.8:0,AC.currentTime,0.05);$('bSound').classList.toggle('off',!on);}
 function noise(dur,type,freq,vol,delay,q){var a=AC;if(!a)return;var t=a.currentTime+(delay||0),len=Math.max(1,a.sampleRate*dur|0),b=a.createBuffer(1,len,a.sampleRate),d=b.getChannelData(0);
@@ -38,7 +38,22 @@ function noise(dur,type,freq,vol,delay,q){var a=AC;if(!a)return;var t=a.currentT
   var g=a.createGain();g.gain.value=vol;s.connect(f);f.connect(g);g.connect(master);s.start(t);}
 function blip(f0,f1,dur,vol,type,delay){var a=AC;if(!a)return;var t=a.currentTime+(delay||0),o=a.createOscillator(),g=a.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+dur);
   g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+0.02);}
-function mew(pitch,kind){var a=AC;if(!a)return;var t=a.currentTime+0.01,f0=pitch*(0.93+Math.random()*0.14),dur=(kind==='trill'?0.22:kind==='long'?0.62:0.36)+Math.random()*0.1;
+/* real meows: five recorded calls, decoded once; pitch follows the cat's age, with a little variation every time.
+   The synthesized meow below stays as a fallback while the files load or if they cannot be decoded. */
+var MEOW=null,meowLoading=false,lastMeow=-1;
+function loadMeows(){if(meowLoading||!AC)return;meowLoading=true;var a=AC;
+  Promise.all([1,2,3,4,5].map(function(i){return fetch('sounds/meow'+i+'.mp3?v=1').then(function(r){if(!r.ok)throw new Error(r.status);return r.arrayBuffer()})
+    .then(function(b){return new Promise(function(res,rej){var pr=a.decodeAudioData(b,res,rej);if(pr&&pr.then)pr.then(res,rej)})})}))
+    .then(function(bufs){MEOW=bufs}).catch(function(e){console.warn('[audio] meow samples unavailable, using synth: '+e)});}
+function mewSample(pitch,kind){var a=AC;if(!a||!MEOW)return false;
+  var rate=clamp(0.9+(pitch-560)/420*0.26,0.82,1.2)*(0.96+Math.random()*0.08),i;
+  if(kind==='long'){i=4;rate*=0.9;}else{do{i=Math.floor(Math.random()*4)}while(i===lastMeow);}lastMeow=i;
+  var src=a.createBufferSource(),g=a.createGain(),t=a.currentTime+0.01,buf=MEOW[i];src.buffer=buf;src.playbackRate.value=kind==='trill'?rate*1.28:rate;
+  var vol=0.85+Math.random()*0.15;g.gain.setValueAtTime(vol,t);
+  if(kind==='trill'){var d=0.32;g.gain.setValueAtTime(vol,t+d*0.6);g.gain.exponentialRampToValueAtTime(0.0008,t+d);src.connect(g);g.connect(master);src.start(t,0.02,d+0.02);}
+  else{src.connect(g);g.connect(master);src.start(t);}
+  return true}
+function mew(pitch,kind){if(mewSample(pitch,kind))return;var a=AC;if(!a)return;var t=a.currentTime+0.01,f0=pitch*(0.93+Math.random()*0.14),dur=(kind==='trill'?0.22:kind==='long'?0.62:0.36)+Math.random()*0.1;
   if(kind==='trill'){var tr=a.createOscillator();tr.type='triangle';tr.frequency.value=f0*0.6;var am=a.createGain();am.gain.value=0;var lf=a.createOscillator();lf.frequency.value=28;var lg=a.createGain();lg.gain.value=0.14;
     lf.connect(lg);lg.connect(am.gain);var tl=a.createBiquadFilter();tl.type='lowpass';tl.frequency.value=1800;tr.connect(am);am.connect(tl);tl.connect(master);tr.start(t);lf.start(t);tr.stop(t+0.18);lf.stop(t+0.18);t+=0.16;}
   var o=a.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(f0*0.82,t);o.frequency.exponentialRampToValueAtTime(f0*1.22,t+dur*0.32);o.frequency.exponentialRampToValueAtTime(f0*0.76,t+dur);
@@ -289,7 +304,7 @@ function catHead(){return cat.r?cat.r.headPos:[cat.x,cat.y+0.6*SC,cat.z]}
 
 /* mesh loading: worker + IndexedDB cache */
 var worker=null,wq={},wid=0;
-try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=24');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
+try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=25');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
   worker.onerror=function(){worker=null;for(var k in wq){var q=wq[k];delete wq[k];q.fallback()}}}}catch(e){worker=null}
 function buildCatAsync(coat,k,sh){return new Promise(function(res,rej){function local(){setTimeout(function(){try{res(window.buildPacked(coat,k,sh))}catch(e){rej(e)}},30)}
   if(worker){var id=++wid;wq[id]={res:res,rej:rej,fallback:local};worker.postMessage({id:id,coat:coat,k:k,shape:sh});}else local();})}
@@ -756,7 +771,7 @@ cv.addEventListener('pointerup',onUp);cv.addEventListener('pointercancel',onUp);
 cv.addEventListener('wheel',function(e){e.preventDefault();cam.distT=clamp(cam.distT*Math.exp(e.deltaY*0.0012),1.4,34)},{passive:false});
 ['gesturestart','gesturechange'].forEach(function(n){document.addEventListener(n,function(e){e.preventDefault()},{passive:false})});
 function onTap(x,y,m){if(STUDIO.on)return;var hc=hitCat(x,y);
-  if(hc){for(var hi=0;hi<4;hi++)setTimeout(function(){heartAt(x,y)},hi*70);if(cat.sleeping){hint(SV.name+' đang ngủ, khẽ gừ gừ…');cat.purr=0.6;return}mewNow(Math.random()<0.5?'trill':'');cat.hopT=now();cat.lookP=cam.eye;cat.exHold=now()+0.5;SV.stats.tt=Math.min(100,SV.stats.tt+0.5);
+  if(hc){for(var hi=0;hi<4;hi++)setTimeout(function(){heartAt(x,y)},hi*70);if(cat.sleeping){hint(SV.name+' đang ngủ, khẽ gừ gừ…');cat.purr=0.6;return}mewNow(Math.random()<0.5?'trill':'');cat.hopT=now();cat.lookP=cam.eye;cat.exHold=now()+0.8;SV.stats.tt=Math.min(100,SV.stats.tt+0.5);
     if(!cat.script||cat.script.name==='idle'||cat.script.name==='wander')setScript('look',[{pose:'sit',dur:2.2,tick:function(){cat.lookP=cam.eye;cat.ex='smile'}}]);return}
   if(tool==='ball'){var p=floorPoint(x,y);if(p)throwBall(p);return}
   if(cup.st==='floor'){var s=toScreen(cup.p);if(Math.hypot(s[0]-x,s[1]-y)<40){cup.st='home';cup.p=v3(CUP_HOME);cup.rot=0;cup.w=0;hint('Đã đặt lại cốc lên bàn');}}}
@@ -919,5 +934,5 @@ if(SV&&!SV.q2){SV.q=2;SV.q2=1;}
 if(SV){if(SV.q>=0)applyQ(SV.q);else applyQ(Q.lvl);SV._away=offline();setSound(SV.sound!==false);start(false);}else{applyQ(Q.lvl);onboard();}
 requestAnimationFrame(frame);
 /* test/debug handle */
-window.__meo={STUDIO:STUDIO,studioOpen:studioOpen,studioPlay:studioPlay,studioView:studioView,get POSE(){return POSE},get CAT(){return CAT},E:E,Q:Q,sdWorld:sdWorld,navPath:navPath,feet:function(){return feet},cam:cam,cat:cat,get SV(){return SV},setScript:setScript,B:{eat:bEat,sleep:bSleep,groom:bGroom,scratch:bScratch,litter:bLitter,window:bWindow,box:bBox,cup:bKnockCup,zoom:bZoomies,tail:bChaseTail,att:bAttention,rub:bRub,sun:bSun},onTool:function(id){onTool(TOOLS.filter(function(t){return t[0]===id})[0])},lure:lure,laser:laser,ball:ball,cup:cup,throwBall:throwBall};
+window.__meo={ac:ac,mewSample:mewSample,get MEOW(){return MEOW},STUDIO:STUDIO,studioOpen:studioOpen,studioPlay:studioPlay,studioView:studioView,get POSE(){return POSE},get CAT(){return CAT},E:E,Q:Q,sdWorld:sdWorld,navPath:navPath,feet:function(){return feet},cam:cam,cat:cat,get SV(){return SV},setScript:setScript,B:{eat:bEat,sleep:bSleep,groom:bGroom,scratch:bScratch,litter:bLitter,window:bWindow,box:bBox,cup:bKnockCup,zoom:bZoomies,tail:bChaseTail,att:bAttention,rub:bRub,sun:bSun},onTool:function(id){onTool(TOOLS.filter(function(t){return t[0]===id})[0])},lure:lure,laser:laser,ball:ball,cup:cup,throwBall:throwBall};
 })();
