@@ -519,7 +519,7 @@ function buildCat(o){
 /* ================= pose controller ================= */
 var CP={
   stand:{py:.34,pz:-.2,pitch:0,cp:0,fz:0,fG:1,frel:[0,-.24,.03],bz:.02,bG:1,brel:[0,-.24,0],tailUp:0.1},
-  sit:{py:.11,pz:-.17,pitch:-0.6,cp:-0.7,sd:0.075,nk:0.8,nd:0.05,bsp:0.06,fz:.05,fG:1,frel:[0,-.24,.03],bz:.15,bG:1,brel:[0,-.2,.16],tailUp:-0.4},
+  sit:{py:.11,pz:-.17,pitch:-0.6,cp:-0.7,sd:0.075,nk:0.65,nd:0.09,ts:0.4,bsp:0.06,fz:-.08,fG:1,frel:[0,-.24,.03],bz:.15,bG:1,brel:[0,-.2,.16],tailUp:-0.4},
   crouch:{py:.25,pz:-.2,pitch:.05,cp:.05,fz:-.02,fG:1,frel:[0,-.2,.03],bz:.07,bG:1,brel:[0,-.2,.05],tailUp:-0.1},
   jump:{py:.34,pz:-.2,pitch:-.2,cp:0,fz:0,fG:0,frel:[0,-.15,.17],bz:0,bG:0,brel:[0,-.17,-.16],tailUp:0.3},
   tuck:{py:.34,pz:-.2,pitch:.05,cp:0,fz:0,fG:0,frel:[0,-.12,.06],bz:0,bG:0,brel:[0,-.13,.07],tailUp:0.1},
@@ -531,7 +531,7 @@ var CP={
 };
 function catState(){var s={eye:['open','open'],pup:[0.7,1],eyeS:1,blep:0,earO:0,earF:0,mouth:0,hy:0,hp:0,tilt:0,blink:1,tailSw:0.4,tailCurl:0,sq:0,gAmp:0,gPh:0,ovL:null,ovR:null,ovLw:0,ovRw:0,tailT:0,feet:[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],footW:[0,0,0,0],scap:[0,0],flex:0,bob:null};var P=CP.sit;for(var k in P)s[k]=Array.isArray(P[k])?P[k].slice():P[k];return s}
 function toCP(st,P,k){for(var key in P){var v=P[key];if(Array.isArray(v)){for(var i=0;i<3;i++)st[key][i]+=(v[i]-st[key][i])*k}else st[key]+=(v-st[key])*k}
-  if(P.lat===undefined)st.lat=(st.lat||0)*(1-k);if(P.bsp===undefined)st.bsp=(st.bsp||0)*(1-k);if(P.nk===undefined)st.nk=(st.nk===undefined?0.5:st.nk)+(0.5-(st.nk===undefined?0.5:st.nk))*k;if(P.nd===undefined)st.nd=(st.nd||0)*(1-k);if(P.twist===undefined)st.twist=(st.twist||0)*(1-k);}
+  if(P.lat===undefined)st.lat=(st.lat||0)*(1-k);if(P.ts===undefined)st.ts=(st.ts||0)*(1-k);if(P.bsp===undefined)st.bsp=(st.bsp||0)*(1-k);if(P.nk===undefined)st.nk=(st.nk===undefined?0.5:st.nk)+(0.5-(st.nk===undefined?0.5:st.nk))*k;if(P.nd===undefined)st.nd=(st.nd||0)*(1-k);if(P.twist===undefined)st.twist=(st.twist||0)*(1-k);}
 var GAIT=[0.25,0.75,0,0.5]; // FL FR BL BR: lateral-sequence walk LH→LF→RH→RF, as cats walk
 /* rigid matrix -> unit dual quaternion (real xyzw, dual xyzw) */
 function dqOf(m,o,k){var a=m[0],b=m[5],c=m[10],tr=a+b+c,x,y,z,w,S;
@@ -550,8 +550,8 @@ function poseCat(c,st,M0,t){
   var br=0.012*Math.sin(t*2.1+S);
   var la=st.lat||0,tw=st.twist||0;
   var Sl=M(Sp,T(J.L0),RX(st.cp*0.5+fl*0.55),RY(la*0.56),RZ(tw*0.5),T(ng(J.L0)));
-  var St=M(Sl,T(J.T0),RX(st.cp*0.5+fl*0.45+br),RY(la*0.56),RZ(tw*0.5),T(ng(J.T0)));
-  var comp=-(st.pitch+st.cp+fl)*0.95,hy=Math.max(-0.85,Math.min(0.85,st.hy));
+  var comp=-(st.pitch+st.cp+fl)*0.95,hy=Math.max(-0.85,Math.min(0.85,st.hy)),ts=st.ts||0;
+  var St=M(Sl,T(J.T0),RX(st.cp*0.5+fl*0.45+br+comp*ts),RY(la*0.56),RZ(tw*0.5),T(ng(J.T0)));comp*=1-ts;
   var nk=st.nk===undefined?0.5:st.nk; /* how much of the level-head correction the neck base takes: more = head sits forward on the shoulders */
   var Sn=M(St,T(J.N0),T(0,-(st.nd||0)*S,-(st.nd||0)*0.4*S),RX(comp*nk),RY(hy*0.45+la*0.45),T(ng(J.N0)));
   var Sh=M(Sn,T(J.HN),RX(comp*(1-nk)),RY(hy*0.55),RX(st.hp),RZ(st.tilt),T(ng(J.HN)));
@@ -612,7 +612,7 @@ function drawCat(E,g,c,M0,st,t,tint){
 /* solve pose heights so paws touch the ground with nearly straight legs */
 function fitPoses(c){
   function shoulderY(P){var st=catState();for(var k in P)st[k]=Array.isArray(P[k])?P[k].slice():P[k];var J=c.J,S=c.S;
-    var Sp=M(T(0,st.py*S,st.pz*S),RX(st.pitch),T(ng(J.P0))),St=M(Sp,T(J.L0),RX(st.cp*0.5),T(ng(J.L0)),T(J.T0),RX(st.cp*0.5),T(ng(J.T0)));return xf(St,J.FS[0])[1]}
+    var Sp=M(T(0,st.py*S,st.pz*S),RX(st.pitch),T(ng(J.P0))),St=M(Sp,T(J.L0),RX(st.cp*0.5),T(ng(J.L0)),T(J.T0),RX(st.cp*0.5-(st.pitch+st.cp)*0.95*(st.ts||0)),T(ng(J.T0)));return xf(St,J.FS[0])[1]}
   var reach=(c.La[0]+c.La[1])*0.96+c.J.FW[0][1],lo=-1.2,hi=0.2,P={};for(var k in CP.sit)P[k]=CP.sit[k];
   for(var i=0;i<30;i++){P.pitch=(lo+hi)/2;if(shoulderY(P)>reach+(P.sd||0)*c.S)lo=P.pitch;else hi=P.pitch;}
   var o={};for(k in CP)o[k]=CP[k];o.sit=P;
