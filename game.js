@@ -296,7 +296,7 @@ function buildCatAsync(coat,k,sh){return new Promise(function(res,rej){function 
 var dbp=null;function db(){if(dbp)return dbp;dbp=new Promise(function(res){try{var r=indexedDB.open('meo-nha-mesh',1);r.onupgradeneeded=function(){r.result.createObjectStore('m')};r.onsuccess=function(){res(r.result)};r.onerror=function(){res(null)}}catch(e){res(null)}});return dbp}
 function idbGet(k){return db().then(function(d){return d?new Promise(function(res){try{var q=d.transaction('m').objectStore('m').get(k);q.onsuccess=function(){res(q.result||null)};q.onerror=function(){res(null)}}catch(e){res(null)}}):null})}
 function idbPut(k,v){db().then(function(d){if(d)try{d.transaction('m','readwrite').objectStore('m').put(v,k)}catch(e){}})}
-var MESHV='m15';
+var MESHV='m16';
 function curShape(){return SV&&SV.shape?SV.shape:null}
 function getCat(coat,k,sh){if(sh===undefined)sh=curShape();var key=MESHV+'-'+coat+'-'+k+'-'+window.shapeKey(sh);return idbGet(key).then(function(v){return v||buildCatAsync(coat,k,sh).then(function(c){idbPut(key,c);return c})})}
 function growG(){return clamp((Date.now()-SV.born)/(SV.grow*864e5),0,1)}

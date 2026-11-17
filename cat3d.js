@@ -402,8 +402,8 @@ function buildCat(o){
   D.add(sdRC(vt(0,.4,.24),add(hc,v(0,-.07,-.05)),r(.1*Math.sqrt(F)),r(.085*Hf)),r(.06));
   /* throat and chest ruff: fills the front of the neck so it never thins into a stalk */
   D.add(sdEL(add(mix(vt(0,.36,.26),add(hc,v(0,-.1,-.02)),0.45).slice(0,3),[0,0,r(.02)]),[r(.085*Math.sqrt(F)),r(.1),r(.08)]),r(.06));
-  D.add(sdEL(hc,[r(hr*1.07),r(hr*.94),r(hr*.9)]),r(.04));
-  [-1,1].forEach(function(s){D.add(sdEL(hv(s*.092,-.055,.02),[r(.09*Hf),r(.072*Hf),r(.075*Hf)]),r(.05));});
+  D.add(sdEL(hc,[r(hr*1.07),r(hr*1.0),r(hr*.95)]),r(.04));
+  [-1,1].forEach(function(s){D.add(sdEL(hv(s*.095,-.06,.02),[r(.098*Hf),r(.08*Hf),r(.08*Hf)]),r(.06));});
   var RE=o.real||0,MZ=RE*0.008; /* realistic faces: a muzzle that stands out with full whisker pads, almond eyes set higher */
   D.add(sdEL(hv(0,-.06-RE*0.006,.088+MZ),[r(.042*Hf*(1+RE*0.15)),r(.028*Hf*(1+RE*0.1)),r(.032*Hf*(1+RE*0.08))]),r(.045));
   
@@ -484,8 +484,12 @@ function buildCat(o){
       mm.surf(function(u,v){var fj=v*nv,j=Math.min(nv-1,Math.floor(fj)),tj=fj-j,fi=u*nu,i2=Math.min(nu-1,Math.floor(fi)),ti=fi-i2;
         var a0=mix(G[j][i2],G[j][i2+1],ti),a1=mix(G[j+1][i2],G[j+1][i2+1],ti);return mix(a0,a1,tj).slice(0,3)},nu,nv,function(u,v){var th=PI+PI*v,x=u*Math.cos(th),y=u*Math.sin(th),q=(x*x)/0.42+(y+1.02)*(y+1.02)/0.4;if(u>0.9||y>-0.07)return o.lip;var tq=(x*x)/0.62+(y+1.05)*(y+1.05)/0.42;return tq<1?mix(H('#ffa5b8'),H('#f2879e'),sm(0.08,0,Math.abs(x))*0.4):mix(H('#9c3a52'),H('#c25670'),sm(-0.15,-0.7,y)*0.6)});
       mouth.push(mm);})(r(.03*Hf)*lv/5);}})();
-  hd.m(0.35,0);[-1,1].forEach(function(s){for(var w=0;w<3;w++){var rt=onS([s*0.48,-0.42+w*0.06,0.78]).p,dv=[s*1,0.1-w*0.12,-0.25];
-    hd.surf(tube(bez(rt,add(rt,scl(dv,r(.05*Hf))),add(rt,add(scl(dv,r(.11*Hf)),[0,-r(.012),0])),add(rt,add(scl(dv,r(.17*Hf)),[0,-r(.03),0]))),cst(r(.0022)),16),16,4,o.whisker);}});
+  /* whiskers: four long, tapering, slightly glowing white hairs per side from the whisker pads, plus two brow whiskers above each eye */
+  var WK=[o.whisker[0],o.whisker[1],o.whisker[2],0.35];
+  hd.m(0.35,0);[-1,1].forEach(function(s){for(var w=0;w<4;w++){var rt=onS([s*0.46,-0.43+w*0.045,0.8]).p,dv=nrm([s*1,0.12-w*0.1,-0.22]),L=r((.25-0.02*w)*Hf);
+    hd.surf(tube(bez(rt,add(rt,scl(dv,L*0.3)),add(rt,add(scl(dv,L*0.65),[0,-L*0.06,0])),add(rt,add(scl(dv,L),[0,-L*0.2,0]))),function(u){return r(.0042)*(1-0.8*u)},18),18,4,WK);}
+    for(var w2=0;w2<2;w2++){var eb=onS([s*(0.42+w2*0.1),0.38,0.75]).p,dv2=nrm([s*0.6,0.8,0.15]),L2=r((.11-0.02*w2)*Hf);
+    hd.surf(tube(bez(eb,add(eb,scl(dv2,L2*0.35)),add(eb,add(scl(dv2,L2*0.7),[s*L2*0.15,0,0])),add(eb,add(scl(dv2,L2),[s*L2*0.35,-L2*0.15,0]))),function(u){return r(.003)*(1-0.8*u)},12),12,4,WK);}});
   /* little tongue (blep) hanging from the lip line */
   (function(){var y0=(nz.p[1]-hc[1])-r(.027*Hf),tp=proj(0,y0);
     tongue.surf(function(u,vv){var t=u*PI,a=vv*TAU,w=r(.017*Hf),l=r(.03*Hf);return [w*Math.sin(t)*Math.cos(a)*(1-0.25*Math.max(0,Math.cos(t))),-l*0.5*(1-Math.cos(t)),r(.006*Hf)*Math.sin(t)*Math.sin(a)]},10,14,function(u,vv,lp){return mix(H('#ff8fa6'),H('#f0708c'),sm(r(.004*Hf),0,Math.abs(lp[0]))*0.6)},T(tp[0],tp[1],tp[2]+r(.004)));
@@ -502,7 +506,7 @@ function buildCat(o){
   for(vi=0;vi<net.P.length;vi+=3){p=[net.P[vi],net.P[vi+1],net.P[vi+2]];var ci=vi/3*4,x=p[0]/S,y=p[1]/S,z=p[2]/S,nz_=net.N[vi+2];
     var hl=[(p[0]-hc[0])/S/Hf,(p[1]-hc[1])/S/Hf,(p[2]-hc[2])/S/Hf],hd_=Math.sqrt(hl[0]*hl[0]+hl[1]*hl[1]+hl[2]*hl[2])*Hf,Lh=1;
     if(hd_<0.2*Hf+0.04&&hl[1]>-0.15){
-      Lh=0.6+0.55*sm(0.02,-0.08,hl[1])*sm(0.07,0.12,Math.abs(hl[0]));
+      Lh=0.75+0.75*sm(0.02,-0.08,hl[1])*sm(0.07,0.12,Math.abs(hl[0]));
       Lh*=1-0.5*sm(0.04,0.1,hl[2]);
       var earZ=sm(0.09,0.13,hl[1])*sm(0.05,0.08,Math.abs(hl[0]));Lh=lerp(Lh,nz_>0.15?0.1:0.3,earZ);
       for(var e2=0;e2<2;e2++)Lh*=sm(1.12,1.9,len3(sub(p,eyeC[e2]))/er);
