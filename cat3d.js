@@ -396,7 +396,9 @@ function buildCat(o){
   D.add(sdEL(vt(0,.305,-.03),[r(.128*F),r(.12*F),r(.25*BL)]),r(.07));
   D.add(sdEL(vt(0,.36,.2),[r(.112*F),r(.13*F),r(.12*BL)]),r(.06));
   D.add(sdEL(vt(0,.35,-.24),[r(.135*F),r(.14*F),r(.13*BL)]),r(.06));
-  D.add(sdRC(vt(0,.4,.24),add(hc,v(0,-.07,-.05)),r(.085*Math.sqrt(F)),r(.08*Hf)),r(.05));
+  D.add(sdRC(vt(0,.4,.24),add(hc,v(0,-.07,-.05)),r(.1*Math.sqrt(F)),r(.085*Hf)),r(.06));
+  /* throat and chest ruff: fills the front of the neck so it never thins into a stalk */
+  D.add(sdEL(add(mix(vt(0,.36,.26),add(hc,v(0,-.1,-.02)),0.45).slice(0,3),[0,0,r(.02)]),[r(.085*Math.sqrt(F)),r(.1),r(.08)]),r(.06));
   D.add(sdEL(hc,[r(hr*1.07),r(hr*.94),r(hr*.9)]),r(.04));
   [-1,1].forEach(function(s){D.add(sdEL(hv(s*.092,-.055,.02),[r(.09*Hf),r(.072*Hf),r(.075*Hf)]),r(.05));});
   D.add(sdEL(hv(0,-.06,.088),[r(.042*Hf),r(.028*Hf),r(.032*Hf)]),r(.045));
@@ -517,7 +519,7 @@ function buildCat(o){
 /* ================= pose controller ================= */
 var CP={
   stand:{py:.34,pz:-.2,pitch:0,cp:0,fz:0,fG:1,frel:[0,-.24,.03],bz:.02,bG:1,brel:[0,-.24,0],tailUp:0.1},
-  sit:{py:.11,pz:-.17,pitch:-0.6,cp:-0.45,sd:0.09,fz:.01,fG:1,frel:[0,-.24,.03],bz:.15,bG:1,brel:[0,-.2,.1],tailUp:-0.4},
+  sit:{py:.11,pz:-.17,pitch:-0.6,cp:-0.45,sd:0.09,nk:0.8,nd:0.05,fz:.01,fG:1,frel:[0,-.24,.03],bz:.15,bG:1,brel:[0,-.2,.1],tailUp:-0.4},
   crouch:{py:.25,pz:-.2,pitch:.05,cp:.05,fz:-.02,fG:1,frel:[0,-.2,.03],bz:.07,bG:1,brel:[0,-.2,.05],tailUp:-0.1},
   jump:{py:.34,pz:-.2,pitch:-.2,cp:0,fz:0,fG:0,frel:[0,-.15,.17],bz:0,bG:0,brel:[0,-.17,-.16],tailUp:0.3},
   tuck:{py:.34,pz:-.2,pitch:.05,cp:0,fz:0,fG:0,frel:[0,-.12,.06],bz:0,bG:0,brel:[0,-.13,.07],tailUp:0.1},
@@ -529,7 +531,7 @@ var CP={
 };
 function catState(){var s={eye:['open','open'],pup:[0.7,1],eyeS:1,blep:0,earO:0,earF:0,mouth:0,hy:0,hp:0,tilt:0,blink:1,tailSw:0.4,tailCurl:0,sq:0,gAmp:0,gPh:0,ovL:null,ovR:null,ovLw:0,ovRw:0,tailT:0,feet:[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],footW:[0,0,0,0],scap:[0,0],flex:0,bob:null};var P=CP.sit;for(var k in P)s[k]=Array.isArray(P[k])?P[k].slice():P[k];return s}
 function toCP(st,P,k){for(var key in P){var v=P[key];if(Array.isArray(v)){for(var i=0;i<3;i++)st[key][i]+=(v[i]-st[key][i])*k}else st[key]+=(v-st[key])*k}
-  if(P.lat===undefined)st.lat=(st.lat||0)*(1-k);if(P.twist===undefined)st.twist=(st.twist||0)*(1-k);}
+  if(P.lat===undefined)st.lat=(st.lat||0)*(1-k);if(P.nk===undefined)st.nk=(st.nk===undefined?0.5:st.nk)+(0.5-(st.nk===undefined?0.5:st.nk))*k;if(P.nd===undefined)st.nd=(st.nd||0)*(1-k);if(P.twist===undefined)st.twist=(st.twist||0)*(1-k);}
 var GAIT=[0.25,0.75,0,0.5]; // FL FR BL BR: lateral-sequence walk LH→LF→RH→RF, as cats walk
 /* rigid matrix -> unit dual quaternion (real xyzw, dual xyzw) */
 function dqOf(m,o,k){var a=m[0],b=m[5],c=m[10],tr=a+b+c,x,y,z,w,S;
@@ -550,8 +552,9 @@ function poseCat(c,st,M0,t){
   var Sl=M(Sp,T(J.L0),RX(st.cp*0.5+fl*0.55),RY(la*0.56),RZ(tw*0.5),T(ng(J.L0)));
   var St=M(Sl,T(J.T0),RX(st.cp*0.5+fl*0.45+br),RY(la*0.56),RZ(tw*0.5),T(ng(J.T0)));
   var comp=-(st.pitch+st.cp+fl)*0.95,hy=Math.max(-0.85,Math.min(0.85,st.hy));
-  var Sn=M(St,T(J.N0),RX(comp*0.5),RY(hy*0.45+la*0.45),T(ng(J.N0)));
-  var Sh=M(Sn,T(J.HN),RX(comp*0.5),RY(hy*0.55),RX(st.hp),RZ(st.tilt),T(ng(J.HN)));
+  var nk=st.nk===undefined?0.5:st.nk; /* how much of the level-head correction the neck base takes: more = head sits forward on the shoulders */
+  var Sn=M(St,T(J.N0),T(0,-(st.nd||0)*S,-(st.nd||0)*0.4*S),RX(comp*nk),RY(hy*0.45+la*0.45),T(ng(J.N0)));
+  var Sh=M(Sn,T(J.HN),RX(comp*(1-nk)),RY(hy*0.55),RX(st.hp),RZ(st.tilt),T(ng(J.HN)));
   var out=[Sp,Sl,St,Sn,Sh],prev=Sp,tt=st.tailT,A=st.tailSw,cu=st.tailCurl;
   for(var i=0;i<5;i++){var jt=J.TL[i];prev=M(prev,T(jt),RX(st.tailUp*(0.36-0.05*i)+0.035*i),RY(Math.sin(tt-i*0.55)*A*(0.42+0.18*i)+cu*(0.4+0.17*i)-la*0.12),T(ng(jt)));out.push(prev);}
   var Rt=rotOf(St),Rp=rotOf(Sp),feet=[],FT=st.feet,FW=st.footW;
