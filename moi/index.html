@@ -245,7 +245,7 @@ body.studio #stats,body.studio #tb,body.studio #tr,body.studio #chip,body.studio
 
 <script src="cat3d.js?v=29"></script>
 <script src="coats.js?v=29"></script>
-<script src="blendercat.js?v=4"></script>
+<script src="blendercat.js?v=5"></script>
 <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.min.js","three/addons/":"./vendor/three/jsm/"}}</script>
 <script type="module">
 /* Đồ hoạ three.js (WebGL2, ánh sáng vật lý, bóng mềm, AO). Máy không chạy được thì game tự dùng engine cũ. */
@@ -257,9 +257,9 @@ try{
   window.THREE=THREE;window.THREE_ADDONS={EffectComposer,RenderPass,GTAOPass,UnrealBloomPass,OutputPass,RoomEnvironment};
   await new Promise((ok,no)=>{const s=document.createElement('script');s.src='engine3.js?v=5';s.onload=ok;s.onerror=no;document.body.appendChild(s);});
 }catch(e){console.error('[three] '+e);}
-const g=document.createElement('script');g.src='game.js?v=32';document.body.appendChild(g);
+const g=document.createElement('script');g.src='game.js?v=33';document.body.appendChild(g);
 </script>
-<script nomodule src="game.js?v=32"></script>
+<script nomodule src="game.js?v=33"></script>
 <script>
 if('serviceWorker' in navigator&&location.protocol!=='file:'){addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
 </script>

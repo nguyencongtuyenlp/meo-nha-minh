@@ -25,7 +25,7 @@ function inv4(a){var a00=a[0],a01=a[1],a02=a[2],a03=a[3],a10=a[4],a11=a[5],a12=a
 var KEY='meo-nha-moi-v1',SV=null; /* bản xem thử ở /moi/: dữ liệu lưu riêng, không đụng bé mèo của bản chính */
 function defSave(){return {v:1,name:'Mochi',coat:'cam',born:Date.now(),grow:7,q:-1,q2:1,sound:true,stats:{an:72,nuoc:74,nl:82,vs:88,vui:68,sach:86,tt:12},food:0,water:60,dirty:0,puddle:null,dex:{},last:Date.now()}}
 function loadSave(){try{var s=JSON.parse(localStorage.getItem(KEY));if(s&&s.v===1&&s.stats)return s}catch(e){}return null}
-function save(){if(!SV)return;SV.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(SV))}catch(e){}}
+function save(){if(!SV||SOLO)return;SV.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(SV))}catch(e){}}
 
 /* ======================= audio (all synthesized) ======================= */
 var AC=null,master=null,purrG=null;
@@ -75,6 +75,9 @@ var SND={crunch:function(){noise(0.06,'bandpass',2600+Math.random()*900,0.22,0,1
   shutter:function(){noise(0.05,'highpass',3000,0.3);noise(0.06,'highpass',2500,0.25,0.09)},ball:function(){noise(0.05,'lowpass',500,0.1)}};
 
 /* ======================= engine & quality ======================= */
+/* chế độ chỉ có bé mèo Blender (để xem riêng bé): tự bật ở link /moi/ hoặc thêm ?meo=cam; ?meo=hai để có cả hai bé.
+   Bé chính vẫn được dựng ngầm (nhiều phần game dựa vào nó) nhưng không vẽ, không chạy, và không ghi đè dữ liệu lưu */
+var SOLO=/[?&]meo=cam\b/.test(location.search)||(/\/moi\/(index\.html)?$/.test(location.pathname)&&!/[?&]meo=hai\b/.test(location.search));
 /* đồ hoạ three.js nếu nạp được (thêm ?engine=cu vào địa chỉ để dùng engine cũ) */
 var cv=$('gl'),E=(window.makeEngine3&&!/[?&]engine=cu\b/.test(location.search)&&window.makeEngine3(cv))||C.makeEngine(cv);
 if(!E){$('loadMsg').textContent='Máy này chưa hỗ trợ WebGL nên chưa chơi được 😿';return}
@@ -276,7 +279,7 @@ function sunPatch(){if(ENV.day<0.55)return null;var L=ENV.L,W=[(WX0+WX1)/2,(WY0+
 
 /* ======================= camera & picking ======================= */
 var cam={yaw:-0.6,pitch:0.7,dist:11,tgt:[0,1.1,0.4],yawT:-0.6,pitchT:0.7,distT:11,follow:true,eye:[0,0,0],VP:I4(),iVP:I4(),V:I4()};
-function updCam(dt){var k=1-Math.pow(0.002,dt),nearK=clamp((cam.dist-2.4)/6.5,0,1);if(cam.follow&&catReady){var ft=[cat.x,cat.y+lerp(0.55,0.45,nearK)*SC,cat.z];cam.tgt=mix(cam.tgt,ft,1-Math.pow(0.05,dt)).slice(0,3);}else cam.tgt=mix(cam.tgt,[0,1.1,0.4],1-Math.pow(0.1,dt)).slice(0,3);
+function updCam(dt){var k=1-Math.pow(0.002,dt),nearK=clamp((cam.dist-2.4)/6.5,0,1);if(cam.follow&&catReady&&(!SOLO||cat2)){var ft=SOLO?[cat2.x,cat2.y+lerp(0.5,0.42,nearK),cat2.z]:[cat.x,cat.y+lerp(0.55,0.45,nearK)*SC,cat.z];cam.tgt=mix(cam.tgt,ft,1-Math.pow(0.05,dt)).slice(0,3);}else cam.tgt=mix(cam.tgt,[0,1.1,0.4],1-Math.pow(0.1,dt)).slice(0,3);
   if(STUDIO.on){cam.pitchT=clamp(cam.pitchT,-0.05,1.45);cam.distT=clamp(cam.distT,1.4,12);if(STUDIO.spin&&!drag)cam.yawT+=dt*0.5;}else{cam.pitchT=clamp(cam.pitchT,cam.follow?lerp(0.08,0.62,nearK):0.16,1.25);cam.distT=clamp(cam.distT,cam.follow?2.4:4.5,34);}cam.yaw=angLerp(cam.yaw,cam.yawT,k);cam.pitch+=(cam.pitchT-cam.pitch)*k;cam.dist+=(cam.distT-cam.dist)*k;
   if(cam.focus){cam.tgt=cam.focus.t;cam.yaw=cam.focus.yaw;cam.pitch=cam.focus.pitch;cam.dist=cam.focus.dist;} /* chỉ dùng cho bộ kiểm tools/ */
   var cp=Math.cos(cam.pitch);cam.eye=[cam.tgt[0]+cam.dist*Math.sin(cam.yaw)*cp,cam.tgt[1]+cam.dist*Math.sin(cam.pitch),cam.tgt[2]+cam.dist*Math.cos(cam.yaw)*cp];
@@ -378,7 +381,7 @@ var tb=$('tb');TOOLS.forEach(function(t){var b=document.createElement('button');
   b.addEventListener('click',function(){ac();onTool(t)});tb.appendChild(b)});
 var STATS=[['an','🍗','No bụng'],['nuoc','💧','Nước'],['nl','⚡','Năng lượng'],['vs','🧻','Vệ sinh'],['vui','🧶','Vui vẻ'],['sach','✨','Sạch sẽ'],['tt','💗','Thân thiết']];
 var statEls={};STATS.forEach(function(s){var d=document.createElement('div');d.className='st';d.innerHTML='<span>'+s[1]+'</span><div class="bar"><i></i></div><div class="lbl"><b>'+s[2]+'</b><em></em></div>';$('stats').appendChild(d);statEls[s[0]]={i:d.querySelector('i'),n:d.querySelector('em')}});
-function updStats(){var s=SV.stats;STATS.forEach(function(k){var v=s[k[0]],e=statEls[k[0]];e.i.style.width=v.toFixed(0)+'%';e.i.style.background=v>60?'#7fd3a8':v>30?'#ffc46b':'#ff7d8f';e.n.textContent=Math.round(v)});
+function updStats(){if(SOLO)return;var s=SV.stats;STATS.forEach(function(k){var v=s[k[0]],e=statEls[k[0]];e.i.style.width=v.toFixed(0)+'%';e.i.style.background=v>60?'#7fd3a8':v>30?'#ffc46b':'#ff7d8f';e.n.textContent=Math.round(v)});
   tb.querySelector('[data-t=food]').classList.toggle('need',SV.food<1&&s.an<50);tb.querySelector('[data-t=water]').classList.toggle('need',SV.water<2&&s.nuoc<50);
   tb.querySelector('[data-t=clean]').classList.toggle('need',SV.dirty>=2||!!SV.puddle);
   $('cName').textContent=SV.name;$('cAge').textContent=ageText(G)+' · '+stageName(G);}
@@ -529,7 +532,7 @@ function updFeet(dt,t){var st=cat.st;if(!CAT)return;
 }
 function approach(p,d){var dx=cat.x-p[0],dz=cat.z-p[2],l=Math.hypot(dx,dz)||1;return [p[0]+dx/l*d,p[2]+dz/l*d]}
 function randFloor(){for(var i=0;i<40;i++){var x=rnd(-RXH+1,RXH-1),z=rnd(-RZH+1,RZH-1);if(sdWorld(x,z,0)>0.45*SC+0.3)return [x,z]}return [0,1]}
-function playerSpot(){var e=cam.eye;if(cam.follow){var dx=e[0]-cat.x,dz=e[2]-cat.z,q=Math.hypot(dx,dz)||1;return [clamp(cat.x+dx/q*1.6,-RXH+1.2,RXH-1.2),clamp(cat.z+dz/q*1.6,-RZH+1.2,RZH-1.2)]}var l=Math.hypot(e[0],e[2])||1;return [clamp(e[0]/l*3.6,-RXH+1.6,RXH-1.6),clamp(e[2]/l*3.6,-RZH+1.6,RZH-1.6)]}
+function playerSpot(){var e=cam.eye;if(cam.follow){var who=SOLO&&cat2?cat2:cat,dx=e[0]-who.x,dz=e[2]-who.z,q=Math.hypot(dx,dz)||1;return [clamp(who.x+dx/q*1.6,-RXH+1.2,RXH-1.2),clamp(who.z+dz/q*1.6,-RZH+1.2,RZH-1.2)]}var l=Math.hypot(e[0],e[2])||1;return [clamp(e[0]/l*3.6,-RXH+1.6,RXH-1.6),clamp(e[2]/l*3.6,-RZH+1.6,RZH-1.6)]}
 function moodEx(){var s=SV.stats;if(s.vui<20||s.an<15)return 'sad';return s.vui>70&&s.tt>40?'smile':'normal'}
 function mewNow(kind){ac();mew(lerp(980,560,G),kind);cat.meowT=now();cat.meowKind=kind;}
 /* how open the mouth is, a seconds into a meow: opens fast, holds with a small tremble, closes slowly.
@@ -794,7 +797,7 @@ function updatePet(dt,t){var brush=tool==='brush',belly=Math.abs(cat.roll)>2;cat
   if(cat.petT>limit){cat.ex='annoyed';cat.tailAmp=1.0;cat.tailRate=10;cat.bubble='😾';dex('vutduoi');if(t-petOver>6){petOver=t;hint(belly?'Bé không thích bị xoa bụng đâu!':'Đuôi bé quất mạnh rồi: bé đang bảo “đủ rồi đó!”',3500)}}
   if(cat.petT>limit+2.6){cat.petting=false;cat.petT=0;SND.hiss();SV.stats.tt=Math.max(3,SV.stats.tt-3);var away=randFloor();
     setScript('swat',[{pose:belly?'loaf':'crouch',dur:0.45,tick:function(k){cat.ex='annoyed';pawTo(1,cam.eye,k<0.6?1:0)}},{go:away,speed:RUN,init:function(){cat.tailUpO=0.2}}]);}}
-function hitCat(sx,sy){if(!catReady||!cat.r)return null;var r=ray(sx,sy),R=cat.r,pts=[[R.headPos,0.2*SC*1.45],[xf(R.chest,CAT.J.N0),0.2*SC*1.25],[xf(R.pelvis,CAT.J.MID),0.2*SC*1.3],[xf(R.pelvis,CAT.J.P0),0.19*SC*1.25]],best=-1;
+function hitCat(sx,sy){if(SOLO||!catReady||!cat.r)return null;var r=ray(sx,sy),R=cat.r,pts=[[R.headPos,0.2*SC*1.45],[xf(R.chest,CAT.J.N0),0.2*SC*1.25],[xf(R.pelvis,CAT.J.MID),0.2*SC*1.3],[xf(R.pelvis,CAT.J.P0),0.19*SC*1.25]],best=-1;
   for(var i=0;i<pts.length;i++){var tt=raySphere(r,pts[i][0],pts[i][1]);if(tt>0&&(best<0||tt<best))best=tt}if(best>0)return add(r.o,scl(r.d,best));
   /* fingers are big and the kitten is small: accept touches near the cat on screen too */
   var c=pts[1][0],sc=toScreen(c),hs=toScreen(R.headPos),rad=Math.max(56,Math.hypot(sc[0]-hs[0],sc[1]-hs[1])*1.6);return Math.hypot(sx-sc[0],sy-sc[1])<rad||Math.hypot(sx-hs[0],sy-hs[1])<rad*0.8?c:null}
@@ -807,7 +810,7 @@ function updWorld(dt,t){
       if(B.x<-RXH+B.r||B.x>RXH-B.r){B.vx*=-0.6;B.x=clamp(B.x,-RXH+B.r,RXH-B.r);SND.ball()}if(B.z<-RZH+B.r||B.z>RZH-B.r){B.vz*=-0.6;B.z=clamp(B.z,-RZH+B.r,RZH-B.r);SND.ball()}
       var sd=sdWorld(B.x,B.z,B.y-B.r);if(sd<B.r){var gn=sdGrad(B.x,B.z,B.y-B.r),vn=B.vx*gn[0]+B.vz*gn[1];if(vn<0){B.vx-=1.6*vn*gn[0];B.vz-=1.6*vn*gn[1];}B.x+=gn[0]*(B.r-sd);B.z+=gn[1]*(B.r-sd);}
       /* the cat's body shoves the ball when it walks into it */
-      if(catReady&&cat.y<0.3&&B.y<0.7){var f=fwd(),cx=cat.x+f[0]*0.12*SC,cz=cat.z+f[2]*0.12*SC,cr=0.3*SC+B.r,ex=B.x-cx,ez=B.z-cz,ed=Math.hypot(ex,ez);
+      if(!SOLO&&catReady&&cat.y<0.3&&B.y<0.7){var f=fwd(),cx=cat.x+f[0]*0.12*SC,cz=cat.z+f[2]*0.12*SC,cr=0.3*SC+B.r,ex=B.x-cx,ez=B.z-cz,ed=Math.hypot(ex,ez);
         if(ed<cr&&ed>1e-4){var mx=ex/ed,mz=ez/ed,rv=(B.vx-f[0]*cat.v)*mx+(B.vz-f[2]*cat.v)*mz;if(rv<0){B.vx-=1.5*rv*mx;B.vz-=1.5*rv*mz;}B.x=cx+mx*cr;B.z=cz+mz*cr;}}}
     var spd=Math.hypot(B.vx,B.vz);if(spd>1e-3&&B.y<B.r+0.05)B.R=mul(C.rotAxis(nrm([B.vz,0,-B.vx]),spd*dt/B.r),B.R);}
   /* feather on a string: a damped pendulum hanging from the rod tip, dragging on the floor */
@@ -826,7 +829,7 @@ function updWorld(dt,t){
   clouds.forEach(function(c){c.x+=dt*0.12;if(c.x>WX1+3)c.x=WX0-3});}
 var ballAt=-99;
 function throwBall(p){var s=playerSpot();ballAt=now();ball.on=true;ball.x=s[0];ball.z=s[1];ball.y=1.3;var dx=p[0]-s[0],dz=p[2]-s[1],l=Math.hypot(dx,dz)||1,T0=0.55;ball.vx=dx/T0*0.75;ball.vz=dz/T0*0.75;ball.vy=(0.24-1.3)/T0+0.5*GRAV*T0;SND.ball();
-  if(catReady&&!cat.sleeping&&cat.y<0.3&&SV.stats.nl>15&&cat.act!=='eat')setScript('ball',bBall());}
+  if(!SOLO&&catReady&&!cat.sleeping&&cat.y<0.3&&SV.stats.nl>15&&cat.act!=='eat')setScript('ball',bBall());}
 
 /* ======================= input ======================= */
 var ptrs={},drag=null,pinch=null,snapReq=false;
@@ -883,8 +886,15 @@ function cat2Toy(){if(lure.on)return {kind:'wand',p:lure.p,caught:!!lure.caught}
   if(ball.on&&now()-ballAt<16)return {kind:'ball',p:[ball.x,ball.y,ball.z]};return null}
 function cat2Swat(kind,fx,fz){if(kind==='ball'){ball.vx+=fx*2.4+(Math.random()-0.5);ball.vz+=fz*2.4+(Math.random()-0.5);ball.vy=Math.max(ball.vy,1.6);SND.ball();}
   if(SV)SV.stats.vui=Math.min(100,SV.stats.vui+1);}
-function cat2World(){return {toy:cat2Toy(),onSwat:cat2Swat,onAnnoyed:function(){SND.hiss();hint('Bé mèo cam bảo “đủ rồi đó!” 😾',3000)},light:clamp((ENV?ENV.day*0.75+ENV.lampC[0]*0.06:0.6),0,1),sdWorld:sdWorld,sdGrad:sdGrad,navPath:navPath,randFloor:randFloor,main:catReady?{x:cat.x,y:cat.y+cat.hop,z:cat.z,yaw:cat.yaw,S:SC}:null}}
+function cat2World(){return {faceYaw:cam.yaw,toy:cat2Toy(),onSwat:cat2Swat,onAnnoyed:function(){SND.hiss();hint('Bé mèo cam bảo “đủ rồi đó!” 😾',3000)},light:clamp((ENV?ENV.day*0.75+ENV.lampC[0]*0.06:0.6),0,1),sdWorld:sdWorld,sdGrad:sdGrad,navPath:navPath,randFloor:randFloor,main:catReady&&!SOLO?{x:cat.x,y:cat.y+cat.hop,z:cat.z,yaw:cat.yaw,S:SC}:null}}
 function cat2On(){return cat2&&catReady&&!STUDIO.on}
+/* chế độ một mình mèo cam: ẩn mọi thứ thuộc về bé chính, camera bám theo mèo cam */
+function soloSetup(){var st=document.createElement('style');st.textContent='#stats,#bMenu,#bubble,#tb [data-t=food],#tb [data-t=water],#tb [data-t=clean],#tb [data-t=call],#tb [data-t=blink],#tb [data-t=book]{display:none!important}';document.head.appendChild(st);
+  $('cName').textContent='Mèo cam';$('cAge').textContent='Bé dựng bằng Blender';$('loadMsg').textContent='Đang gọi mèo cam ra…';
+  cam.follow=true;cam.distT=cam.dist=3.3;cam.pitchT=cam.pitch=0.3;$('bFollow').classList.remove('off');}
+/* đồ chơi tự cất khi thôi kéo (bình thường việc này nằm trong phần của bé chính), và tiếng gừ gừ của mèo cam */
+function soloToys(t){if(lure.on&&t>lure.until&&!lure.held)lure.on=false;if(laser.on&&!laser.held&&t>laser.until)laser.on=false;lure.caught=false;
+  purrLevel(cat2?cat2.purr:0);}
 function hitCat2(sx,sy){if(!cat2On()||!cat2.r)return false;var r=ray(sx,sy),s=cat2.spheres();
   if(raySphere(r,cat2.r.headPos,0.24)>0||s.some(function(b){return raySphere(r,[b[0],0.35,b[1]],b[2]+0.06)>0}))return true;
   /* ngón tay to, bé thì nhỏ: chạm gần bé trên màn hình cũng tính */
@@ -896,7 +906,7 @@ function render(t){
   cat.st.floor=cat.poseObj?-100:cat.y;E.floorY=cat.st.floor;
   if(shOn){var c=[0,1.5,-0.5],L=env.L,ey=add(c,scl(L,26));LVP=mul(C.ortho(-11.5,11.5,-11.5,11.5,4,50),C.lookAt(ey,c,Math.abs(L[1])>0.98?[0,0,1]:[0,1,0]));
     if(E.shadowBegin(LVP)){E.drawD(Gw,I);for(var i=0;i<4;i++)E.drawD(Gwalls[i].m,I);drawDynamic(Gd,true);
-      if(catReady){var r0=C.poseCat(CAT,cat.st,catM0(),t);E.drawSkinD(GC.skin,r0.dq,r0.R0);E.drawD(GC.head,r0.head);E.drawD(GC.chest,r0.chest);}if(cat2On())cat2.drawShadow();E.shadowEnd();}}
+      if(catReady&&!SOLO){var r0=C.poseCat(CAT,cat.st,catM0(),t);E.drawSkinD(GC.skin,r0.dq,r0.R0);E.drawD(GC.head,r0.head);E.drawD(GC.chest,r0.chest);}if(cat2On())cat2.drawShadow();E.shadowEnd();}}
   E.begin(cv.width,cv.height,cam.VP,cam.eye,env.L,env.fog,{amb0:env.amb0,amb1:env.amb1,sun:env.sun,lampP:env.lampP,lampC:env.lampC,shadow:shOn,k:env.k,exp:env.exp,smr:Q.lvl>1?2.4:1.8,view:cam.V});
   E.draw(Gw,I);E.draw(Gfloor,I,null,texFloor);
   for(var w=0;w<4;w++)if(wallVisible(w,cam.eye)){E.draw(Gwalls[w].m,I);E.draw(Gwalls[w].p,I,null,texWall);}
@@ -905,12 +915,12 @@ function render(t){
   E.draw(Gd.bulb,T(env.lampP[0]-0.1,env.lampP[1]-0.15,env.lampP[2]),mix([0.95,0.92,0.88],[1,0.85,0.55],1-env.day).slice(0,3));
   var lk=env.lampC[0]/1.5;if(lk>0.05)E.draw(Gd.shade,T(OBJ.lamp[0],4.05,OBJ.lamp[2]),[0.35+0.9*lk,0.3+0.75*lk,0.25+0.55*lk]);
   drawDynamic(Gd,false);
-  if(catReady){for(var cs=0;cs<3;cs++){cat.r=C.poseCat(CAT,cat.st,catM0(),t);var bx=cat.x,bz=cat.z;collideSkin();if(bx===cat.x&&bz===cat.z)break;}
+  if(catReady&&!SOLO){for(var cs=0;cs<3;cs++){cat.r=C.poseCat(CAT,cat.st,catM0(),t);var bx=cat.x,bz=cat.z;collideSkin();if(bx===cat.x&&bz===cat.z)break;}
     cat.r=C.drawCat(E,GC,CAT,catM0(),cat.st,t);}
   if(cat2On())cat2.draw();
   /* soft sprites */
   E.sprites([cam.V[0],cam.V[4],cam.V[8]],[cam.V[1],cam.V[5],cam.V[9]]);
-  if(catReady){var sh=1-Math.min(0.6,cat.hop+Math.max(0,cat.y-0.25)*0.0),gy=cat.y>0.3?cat.y:0;E.sprite([cat.x,gy+0.015,cat.z-0.05*SC],[0.55*SC*sh+0.1,0.8*SC*sh+0.1],[0.25,0.15,0.2,0.3],1.6,false);}
+  if(catReady&&!SOLO){var sh=1-Math.min(0.6,cat.hop+Math.max(0,cat.y-0.25)*0.0),gy=cat.y>0.3?cat.y:0;E.sprite([cat.x,gy+0.015,cat.z-0.05*SC],[0.55*SC*sh+0.1,0.8*SC*sh+0.1],[0.25,0.15,0.2,0.3],1.6,false);}
   if(cat2On()&&cat2.r)E.sprite([cat2.x,0.015,cat2.z],[0.4,0.55],[0.25,0.15,0.2,0.3],1.6,false);
   if(ball.on)E.sprite([ball.x,0.015,ball.z],[0.32,0.32],[0.25,0.15,0.2,0.28],1.5,false);
   [[OBJ.bed.c,1.6],[OBJ.litter.c,1.7],[OBJ.box.c,1.4],[OBJ.post,1.0],[OBJ.table.c,1.9]].forEach(function(o){E.sprite([o[0][0],0.012,o[0][2]],[o[1],o[1]*0.8],[0.25,0.15,0.2,0.14],1.3,false)});
@@ -1013,13 +1023,14 @@ function frame(){requestAnimationFrame(frame);if(document.hidden)return;if(windo
   if(dt<=0){envAt(hourNow());updCam(rdt);render(t);if(SV&&catReady)studioHud();return;}
   if(cv.width!==Math.round(innerWidth*DPR)||cv.height!==Math.round(innerHeight*DPR))resize();
   envAt(hourNow());if(liveTime){$('tSlider').value=ENV.h.toFixed(2)}var hh=Math.floor(ENV.h),mm=Math.floor((ENV.h-hh)*60);$('clock').textContent=(hh<10?'0':'')+hh+':'+(mm<10?'0':'')+mm;
-  if(SV&&catReady){if(!STUDIO.on)tickStats(dt);updateCat(dt,t);if(STUDIO.on)studioHud();}
+  if(SOLO)soloToys(t);
+  else if(SV&&catReady){if(!STUDIO.on)tickStats(dt);updateCat(dt,t);if(STUDIO.on)studioHud();}
   if(cat2On()){cat2.update(dt,t,cat2World());
     /* bé chính chạy nhanh có thể lao vào bé Blender trong một khung: đẩy bé chính lùi ra, rồi lại giữ khỏi đồ đạc */
-    if(cat.y<0.5&&!cat.poseObj)for(var it2=0;it2<3;it2++){var g2=cat2.gapMain({x:cat.x,z:cat.z,yaw:cat.yaw,S:SC});if(g2.gap>=0.01)break;
+    if(!SOLO&&cat.y<0.5&&!cat.poseObj)for(var it2=0;it2<3;it2++){var g2=cat2.gapMain({x:cat.x,z:cat.z,yaw:cat.yaw,S:SC});if(g2.gap>=0.01)break;
       var pu=0.01-g2.gap;cat.x+=g2.dx*pu;cat.z+=g2.dz*pu;cat.v*=0.5;collideCat();}}
   if(SV){updWorld(dt,t);laserJitter(t);}updCam(dt);render(t);
-  if(SV&&catReady){updHud();statT+=dt;if(statT>0.4){statT=0;updStats();}saveT+=dt;if(saveT>5){saveT=0;save();}growT+=dt;if(growT>20){growT=0;checkGrowth();}}
+  if(SV&&catReady&&!SOLO){updHud();statT+=dt;if(statT>0.4){statT=0;updStats();}saveT+=dt;if(saveT>5){saveT=0;save();}growT+=dt;if(growT>20){growT=0;checkGrowth();}}
   /* adaptive resolution: if the phone struggles, render fewer pixels */
   frames++;if(rt-fpsT>2.5&&!window.__noAdapt){var fps=frames/(rt-fpsT);frames=0;fpsT=rt;if(fps<24&&Q.scale>0.8&&Q.lvl<2){Q.scale*=0.88;resize();}else if(fps>52&&Q.scale<1){Q.scale=Math.min(1,Q.scale*1.08);resize();}}
   var bg=$('bg');var key=ENV.bgT.map(function(v){return (v*20|0)}).join();if(bg._k!==key){bg._k=key;bg.style.background='linear-gradient(180deg,'+rgb(ENV.bgT)+','+rgb(ENV.bgB)+')';}}
@@ -1031,7 +1042,7 @@ function start(first){G=growG();var k=stageOf(G);$('loadMsg').textContent=first?
   getCat(SV.coat,k).then(function(c){setCatMesh(c,k);updStats();$('loading').classList.add('gone');
     if(first){var X=OBJ.box.c;cat.x=X[0];cat.z=X[2];cat.y=0.06;cat.yaw=-PI/2;setScript('arrive',[{pose:'loaf',dur:1.4,tick:function(){cat.lookP=cam.eye}},{jump:{to:[X[0]-OBJ.box.hx-0.9,0,X[2]-0.3],h:OBJ.box.h+0.3,dur:0.6}},
       {pose:'sit',dur:2.5,tick:function(k,dt,el){cat.lookP=cam.eye;cat.ex='sparkle';if(el<0.05)mewNow('trill')}}]);toast('Chào mừng '+SV.name+' về nhà! 🏡',3600);setTimeout(function(){hint('Kéo ngón tay trên người bé để vuốt ve 🐾',4500)},3800);}
-    else{var gone=SV._away||0;if(gone>60){setScript('greet',bAttention());toast(SV.name+' nhớ bạn quá, chạy ra đón nè!',3600)}}
+    else if(!SOLO){var gone=SV._away||0;if(gone>60){setScript('greet',bAttention());toast(SV.name+' nhớ bạn quá, chạy ra đón nè!',3600)}}
     if(k+1<window.CAT_STAGES)setTimeout(function(){getCat(SV.coat,k+1)},4000);
   }).catch(function(err){$('loadMsg').textContent='Không dựng được bé mèo: '+err;});}
 function onboard(){var wrap=$('coats'),sel='cam';wrap.innerHTML='';Object.keys(window.COATS).forEach(function(k){var c=window.COATS[k],d=document.createElement('button');d.className='coat'+(k===sel?' on':'');
@@ -1042,7 +1053,8 @@ function onboard(){var wrap=$('coats'),sel='cam';wrap.innerHTML='';Object.keys(w
 resize();buildScene();envAt(hourNow());
 SV=loadSave();
 if(SV&&!SV.q2){SV.q=2;SV.q2=1;}
-if(SV){if(SV.q>=0)applyQ(SV.q);else applyQ(Q.lvl);SV._away=offline();setSound(SV.sound!==false);start(false);}else{applyQ(Q.lvl);onboard();}
+if(SOLO&&!SV)SV=defSave(); /* chỉ xem mèo cam: không cần màn nhận nuôi */
+if(SV){if(SV.q>=0)applyQ(SV.q);else applyQ(Q.lvl);SV._away=SOLO?0:offline();setSound(SV.sound!==false);start(false);if(SOLO)soloSetup();}else{applyQ(Q.lvl);onboard();}
 requestAnimationFrame(frame);
 /* test/debug handle */
 window.__meo={get cat2(){return cat2},cat2World:cat2World,ac:ac,mewSample:mewSample,get MEOW(){return MEOW},STUDIO:STUDIO,studioOpen:studioOpen,studioPlay:studioPlay,studioView:studioView,get POSE(){return POSE},get CAT(){return CAT},E:E,Q:Q,sdWorld:sdWorld,navPath:navPath,feet:function(){return feet},cam:cam,cat:cat,get SV(){return SV},setScript:setScript,B:{eat:bEat,sleep:bSleep,groom:bGroom,scratch:bScratch,litter:bLitter,window:bWindow,box:bBox,cup:bKnockCup,zoom:bZoomies,tail:bChaseTail,att:bAttention,rub:bRub,sun:bSun},onTool:function(id){onTool(TOOLS.filter(function(t){return t[0]===id})[0])},lure:lure,laser:laser,ball:ball,cup:cup,throwBall:throwBall};

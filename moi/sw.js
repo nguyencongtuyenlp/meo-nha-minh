@@ -1,5 +1,5 @@
 /* offline support: network first (always the newest game when online), cached copy when offline */
-var V='meo-nha-moi-v3';
+var V='meo-nha-moi-v4';
 var SHELL=['./','index.html','game.js','cat3d.js','coats.js','blendercat.js','meo-blender.bin','engine3.js','vendor/three/build/three.module.min.js','vendor/three/build/three.core.js',
   'vendor/three/jsm/postprocessing/EffectComposer.js','vendor/three/jsm/postprocessing/Pass.js','vendor/three/jsm/postprocessing/MaskPass.js','vendor/three/jsm/postprocessing/ShaderPass.js',
   'vendor/three/jsm/postprocessing/RenderPass.js','vendor/three/jsm/postprocessing/OutputPass.js','vendor/three/jsm/postprocessing/GTAOPass.js','vendor/three/jsm/postprocessing/UnrealBloomPass.js',

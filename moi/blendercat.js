@@ -173,8 +173,9 @@
     function stop(wait) { K.path = null; K.wait = wait; K.u = 0; say('stand'); }
 
     function place(w) {
-      var p = farSpot(w, 2.2, 0.75);
-      K.x = p[0]; K.z = p[1]; K.yaw = Math.atan2(-p[0], 2 - p[1]); K.placed = true; stop(2.5);
+      /* một mình trong phòng thì đứng giữa thảm, quay mặt về phía người xem */
+      var p = w.main ? farSpot(w, 2.2, 0.75) : [0.3, 1.2];
+      K.x = p[0]; K.z = p[1]; K.yaw = !w.main && w.faceYaw !== undefined ? w.faceYaw + 0.35 : Math.atan2(-p[0], 2 - p[1]); K.placed = true; stop(2.5);
     }
 
     /* đẩy bé ra khỏi đồ đạc theo đường viền thật của da (đầu, chân, đuôi) */
