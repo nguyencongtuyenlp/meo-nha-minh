@@ -255,11 +255,11 @@ try{
     import('three/addons/postprocessing/GTAOPass.js'),import('three/addons/postprocessing/UnrealBloomPass.js'),
     import('three/addons/postprocessing/OutputPass.js'),import('three/addons/environments/RoomEnvironment.js')]);
   window.THREE=THREE;window.THREE_ADDONS={EffectComposer,RenderPass,GTAOPass,UnrealBloomPass,OutputPass,RoomEnvironment};
-  await new Promise((ok,no)=>{const s=document.createElement('script');s.src='engine3.js?v=4';s.onload=ok;s.onerror=no;document.body.appendChild(s);});
+  await new Promise((ok,no)=>{const s=document.createElement('script');s.src='engine3.js?v=5';s.onload=ok;s.onerror=no;document.body.appendChild(s);});
 }catch(e){console.error('[three] '+e);}
-const g=document.createElement('script');g.src='game.js?v=30';document.body.appendChild(g);
+const g=document.createElement('script');g.src='game.js?v=31';document.body.appendChild(g);
 </script>
-<script nomodule src="game.js?v=30"></script>
+<script nomodule src="game.js?v=31"></script>
 <script>
 if('serviceWorker' in navigator&&location.protocol!=='file:'){addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
 </script>

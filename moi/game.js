@@ -183,7 +183,7 @@ function buildWorld(){
   var P=OBJ.post;W.m(0.98,2);box(W,[P[0],0.08,P[2]],[0.7,0.08,0.7],H('#f3d7c6'),0.25);
   W.surf(tube(function(u){return [P[0],0.12+u*3.0,P[2]]},cst(0.27),8),8,20,function(u,v,lp){return Math.sin(lp[1]*38)>0?H('#d8b27e'):H('#c79e68')});
   W.surf(sEll(0.85,0.1,0.85,0.35),10,20,H('#f7c9d6'),T(P[0],3.15,P[2]));
-  W.surf(tube(bez([P[0]-0.6,3.1,P[2]+0.3],[P[0]-0.62,2.6,P[2]+0.32],[P[0]-0.6,2.3,P[2]+0.31],[P[0]-0.6,2.1,P[2]+0.3]),cst(0.012),10),10,4,H('#fff'));
+  W.surf(tube(bez([P[0]-0.6,3.1,P[2]+0.3],[P[0]-0.62,2.6,P[2]+0.32],[P[0]-0.6,2.3,P[2]+0.31],[P[0]-0.6,2.1,P[2]+0.3]),cst(0.012),10),10,4,H('#ffffff'));
   W.surf(ell(0.13,0.13,0.13),8,10,H('#ff8fb1'),T(P[0]-0.6,2.02,P[2]+0.3));
   /* low table */
   var TB=OBJ.table,tc=TB.c;W.m(0.38,1);box(W,[tc[0],TB.h-0.07,tc[2]],[TB.hx,0.07,TB.hz],WOOD,0.12,null,8,20);

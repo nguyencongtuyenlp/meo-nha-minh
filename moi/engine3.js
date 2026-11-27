@@ -7,7 +7,8 @@
   var THREE = G.THREE, AD = G.THREE_ADDONS;
   if (!THREE || !AD) return;
 
-  function lin(c) { return Math.pow(Math.max(0, c), 2.2); }
+  /* màu hỏng (NaN) phải thành 0 ở đây: chỉ một điểm NaN trong ảnh HDR là bloom nhoè thành mảng đen cả màn */
+  function lin(c) { return c > 0 ? Math.pow(c, 2.2) : 0; }
 
   /* ---------- đoạn shader dùng chung ---------- */
   var NOISE = [
