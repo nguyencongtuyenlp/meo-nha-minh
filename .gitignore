@@ -1,0 +1,4 @@
+.claude/
+# sinh ra lại được bằng tools/blender/meo.py
+tools/blender/*.blend
+tools/blender/*.blend1

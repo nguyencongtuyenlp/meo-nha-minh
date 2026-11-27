@@ -75,7 +75,8 @@ var SND={crunch:function(){noise(0.06,'bandpass',2600+Math.random()*900,0.22,0,1
   shutter:function(){noise(0.05,'highpass',3000,0.3);noise(0.06,'highpass',2500,0.25,0.09)},ball:function(){noise(0.05,'lowpass',500,0.1)}};
 
 /* ======================= engine & quality ======================= */
-var cv=$('gl'),E=C.makeEngine(cv);
+/* đồ hoạ three.js nếu nạp được (thêm ?engine=cu vào địa chỉ để dùng engine cũ) */
+var cv=$('gl'),E=(window.makeEngine3&&!/[?&]engine=cu\b/.test(location.search)&&window.makeEngine3(cv))||C.makeEngine(cv);
 if(!E){$('loadMsg').textContent='Máy này chưa hỗ trợ WebGL nên chưa chơi được 😿';return}
 var gl=E.gl,PHONE=Math.min(screen.width,screen.height)<560;
 var shadowOK=E.initShadow(2048);
@@ -84,7 +85,7 @@ function applyQ(l){Q.lvl=l;C.setFurQ(l===0?0.45:l===1?0.75:1);E.setPost({on:l>0,
 var W_=1,H_=1,DPR=1;
 function resize(){var dp=Math.min(window.devicePixelRatio||1,Q.lvl===0?1:Q.lvl===1?1.6:2)*Q.scale;W_=innerWidth;H_=innerHeight;DPR=dp;cv.width=Math.round(W_*dp);cv.height=Math.round(H_*dp);}
 addEventListener('resize',resize);addEventListener('orientationchange',function(){setTimeout(resize,250)});
-function repeatTex(tx){gl.bindTexture(gl.TEXTURE_2D,tx);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);}
+function repeatTex(tx){if(E.repeat)return E.repeat(tx);gl.bindTexture(gl.TEXTURE_2D,tx);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);}
 
 /* ======================= room layout ======================= */
 var RXH=7,RZH=6,WALLH=6.2,WX0=-3.2,WX1=0.2,WY0=2.1,WY1=5.0;
@@ -277,6 +278,7 @@ function sunPatch(){if(ENV.day<0.55)return null;var L=ENV.L,W=[(WX0+WX1)/2,(WY0+
 var cam={yaw:-0.6,pitch:0.7,dist:11,tgt:[0,1.1,0.4],yawT:-0.6,pitchT:0.7,distT:11,follow:true,eye:[0,0,0],VP:I4(),iVP:I4(),V:I4()};
 function updCam(dt){var k=1-Math.pow(0.002,dt),nearK=clamp((cam.dist-2.4)/6.5,0,1);if(cam.follow&&catReady){var ft=[cat.x,cat.y+lerp(0.55,0.45,nearK)*SC,cat.z];cam.tgt=mix(cam.tgt,ft,1-Math.pow(0.05,dt)).slice(0,3);}else cam.tgt=mix(cam.tgt,[0,1.1,0.4],1-Math.pow(0.1,dt)).slice(0,3);
   if(STUDIO.on){cam.pitchT=clamp(cam.pitchT,-0.05,1.45);cam.distT=clamp(cam.distT,1.4,12);if(STUDIO.spin&&!drag)cam.yawT+=dt*0.5;}else{cam.pitchT=clamp(cam.pitchT,cam.follow?lerp(0.08,0.62,nearK):0.16,1.25);cam.distT=clamp(cam.distT,cam.follow?2.4:4.5,34);}cam.yaw=angLerp(cam.yaw,cam.yawT,k);cam.pitch+=(cam.pitchT-cam.pitch)*k;cam.dist+=(cam.distT-cam.dist)*k;
+  if(cam.focus){cam.tgt=cam.focus.t;cam.yaw=cam.focus.yaw;cam.pitch=cam.focus.pitch;cam.dist=cam.focus.dist;} /* chỉ dùng cho bộ kiểm tools/ */
   var cp=Math.cos(cam.pitch);cam.eye=[cam.tgt[0]+cam.dist*Math.sin(cam.yaw)*cp,cam.tgt[1]+cam.dist*Math.sin(cam.pitch),cam.tgt[2]+cam.dist*Math.cos(cam.yaw)*cp];
   var asp=W_/H_,fov=(asp<1.2?50:36)*PI/180;cam.V=C.lookAt(cam.eye,cam.tgt,[0,1,0]);cam.VP=mul(C.persp(fov,asp,0.35,90),cam.V);E.setProj(0.35,90,fov,asp);E.setPost({foc:cam.dist,dof:0}); /* no depth-of-field: close-ups stay sharp everywhere */cam.iVP=inv4(cam.VP);}
 function ray(sx,sy){var x=sx/W_*2-1,y=1-sy/H_*2,a=xf4(cam.iVP,[x,y,-1]),b=xf4(cam.iVP,[x,y,1]);return {o:[a[0],a[1],a[2]],d:nrm(sub([b[0],b[1],b[2]],[a[0],a[1],a[2]]))}}
@@ -305,14 +307,14 @@ function catHead(){return cat.r?cat.r.headPos:[cat.x,cat.y+0.6*SC,cat.z]}
 
 /* mesh loading: worker + IndexedDB cache */
 var worker=null,wq={},wid=0;
-try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=26');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
+try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=28');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
   worker.onerror=function(){worker=null;for(var k in wq){var q=wq[k];delete wq[k];q.fallback()}}}}catch(e){worker=null}
 function buildCatAsync(coat,k,sh){return new Promise(function(res,rej){function local(){setTimeout(function(){try{res(window.buildPacked(coat,k,sh))}catch(e){rej(e)}},30)}
   if(worker){var id=++wid;wq[id]={res:res,rej:rej,fallback:local};worker.postMessage({id:id,coat:coat,k:k,shape:sh});}else local();})}
 var dbp=null;function db(){if(dbp)return dbp;dbp=new Promise(function(res){try{var r=indexedDB.open('meo-nha-mesh',1);r.onupgradeneeded=function(){r.result.createObjectStore('m')};r.onsuccess=function(){res(r.result)};r.onerror=function(){res(null)}}catch(e){res(null)}});return dbp}
 function idbGet(k){return db().then(function(d){return d?new Promise(function(res){try{var q=d.transaction('m').objectStore('m').get(k);q.onsuccess=function(){res(q.result||null)};q.onerror=function(){res(null)}}catch(e){res(null)}}):null})}
 function idbPut(k,v){db().then(function(d){if(d)try{d.transaction('m','readwrite').objectStore('m').put(v,k)}catch(e){}})}
-var MESHV='m27';
+var MESHV='m28';
 function curShape(){return SV&&SV.shape?SV.shape:null}
 function getCat(coat,k,sh){if(sh===undefined)sh=curShape();var key=MESHV+'-'+coat+'-'+k+'-'+window.shapeKey(sh);return idbGet(key).then(function(v){return v||buildCatAsync(coat,k,sh).then(function(c){idbPut(key,c);return c})})}
 function growG(){return clamp((Date.now()-SV.born)/(SV.grow*864e5),0,1)}
@@ -702,10 +704,46 @@ function updateCat(dt,t){
   if(ex==='annoyed')st.earO+=(0.55-st.earO)*ek;else if(cat.sleeping||cat.pose==='curl'||cat.pose==='side')st.earO+=(0.28-st.earO)*ek;
   if(ex==='chew')st.mouth=0.12+0.18*Math.abs(Math.sin(t*9));else if(ex==='lap'){st.blep=Math.sin(t*25)>0?1:0.15;st.mouth=0.04}else if(ex==='lick')st.blep=cat.lickB!=null?cat.lickB:0.6+0.4*Math.sin(t*12);
   else if(ex==='chatter')st.mouth=Math.sin(t*30)>0?0.45:0.08;else if(ex==='annoyed'){st.pup[0]+=(0.35-st.pup[0])*0.2}else if(ex==='sad'){st.eyeS+=(0.97-st.eyeS)*0.1}
-  var bl=C.blinkAt(t,0.7),sb=t-cat.slowBlink;if(sb>=0&&sb<1.8)bl=Math.min(bl,1-0.94*Math.sin(Math.min(1,sb/1.8)*PI));if(ex==='sleep')bl=0.06;st.blink=bl;
+  /* cats blink seldom and irregularly (not every 4 s like a clock), sometimes twice in a row */
+  if(!cat.blinkAt||t>cat.blinkAt+0.5){cat.blinkAt=t+rnd(2.5,9);if(Math.random()<0.2)cat.blink2=cat.blinkAt+rnd(0.3,0.45);else cat.blink2=-9;}
+  function blinkK(t0){var q=(t-t0)/0.17;return q>=0&&q<1?1-0.92*Math.sin(q*PI):1}
+  var bl=Math.min(blinkK(cat.blinkAt),blinkK(cat.blink2)),sb=t-cat.slowBlink;if(sb>=0&&sb<1.8)bl=Math.min(bl,1-0.94*Math.sin(Math.min(1,sb/1.8)*PI));if(ex==='sleep')bl=0.06;st.blink=bl;
   /* tail */
   st.tailT+=dt*cat.tailRate;st.tailSw+=(cat.tailAmp-st.tailSw)*(1-Math.pow(0.05,dt));var cu=cat.pose==='curl'?-1.6:(cat.pose==='sit'||cat.pose==='loaf')?0.6:0;st.tailCurl+=(cu-st.tailCurl)*(1-Math.pow(0.1,dt));
+  lifeDetail(st,ex,dt,t);
   purrLevel(Math.max(cat.purr,cat.petting?0.8:0));if(cat.purr>0.3||cat.petting)dexLater('grugru',3);
+}
+/* the small motions that make a cat look alive, all smoothed (no value ever jumps):
+   breathing, pupils, lids, whiskers, sniffing, the lag of the tail and the flick of its tip */
+function lifeDetail(st,ex,dt,t){
+  var calm=cat.sleeping||cat.pose==='curl'||cat.pose==='side'||cat.pose==='loaf',run=cat.spd>WALK()*1.3;
+  /* breathing: ~20/min asleep, ~30 at rest, faster walking; panting-fast for a while after running. Inhale shorter than exhale */
+  if(run)cat.panting=Math.min(8,(cat.panting||0)+dt*2);else cat.panting=Math.max(0,(cat.panting||0)-dt);
+  var hz=cat.sleeping?0.33:calm?0.42:cat.spd>0.05?0.62:0.5;if(cat.panting>0.5)hz=lerp(hz,1.5,Math.min(1,cat.panting/4));
+  cat.brPh=((cat.brPh||0)+dt*hz)%1;var ph=cat.brPh,wave=ph<0.4?sm(0,0.4,ph):1-sm(0.4,1,ph);
+  var amp=(cat.sleeping?1.15:calm?1:0.8)*(cat.panting>0.5?0.75:1);
+  st.breath=(wave-0.35)*amp*0.011*SC+(cat.purr>0.3||cat.petting?0.0006*SC*Math.sin(t*150):0);
+  /* pupils: slits in bright light, round in the dark; wide whenever excited or hunting whatever the light */
+  var near=cat.r?cat.r.headPos:[cat.x,0.5,cat.z],sp=sunPatch(),inSun=sp&&Math.hypot(near[0]-sp[0],near[2]-sp[2])<1.6?1:0;
+  var light=clamp(ENV.day*0.75+inSun*0.35+ENV.lampC[0]*0.06,0,1),arousal=cat.hunt||ex==='sparkle'||ex==='hunt'||ex==='play'||(cat.script&&/zoom|chase|toy|ball|laser|lure/.test(cat.script.name))?1:0;
+  var plT=arousal?1.08:lerp(1,0.3,sm(0.35,0.95,light)),pk=1-Math.pow(0.03,dt);
+  st.pupL=(st.pupL===undefined?1:st.pupL)+(plT-(st.pupL===undefined?1:st.pupL))*pk;st.pupH=1+(1-st.pupL)*0.18;
+  /* lids: narrowed when content (petting, purring), heavy when drowsy, a little narrowed when cross, wide when alert */
+  var lidT=cat.petting||cat.purr>0.3?0.55:SV.stats.nl<30?0.38:ex==='annoyed'?0.3:arousal?0:calm?0.25:0.07;
+  st.lid=(st.lid||0)+(lidT-(st.lid||0))*(1-Math.pow(0.08,dt));
+  /* sniffing bursts while exploring, eating or meeting something new: nose twitches, whiskers come forward */
+  if(!cat.sleeping&&t>(cat.sniffNext||0)){cat.sniffNext=t+rnd(4,11);cat.sniffEnd=t+rnd(0.7,1.6);}
+  var sniffing=t<(cat.sniffEnd||0)&&!cat.sleeping&&ex!=='meow';
+  st.sniffV=(st.sniffV||0)+((sniffing?Math.sin(t*42):0)-(st.sniffV||0))*(1-Math.pow(1e-4,dt));
+  var whT=ex==='annoyed'?-0.8:sniffing||arousal||cat.lookP?0.55:cat.sleeping?-0.25:0.1;
+  st.whF=(st.whF||0)+(whT-(st.whF||0))*(1-Math.pow(0.05,dt));
+  if(Math.random()<dt*0.25)cat.whImp=rnd(-1,1);cat.whImp=(cat.whImp||0)*Math.pow(0.02,dt);st.whT=cat.whImp*Math.sin(t*20);
+  /* tail: the lag of a heavy tail when the body turns (damped spring, slight overshoot) */
+  var yr=cat.yawPrev===undefined?0:angD(cat.yawPrev,cat.yaw)/Math.max(dt,1e-3);cat.yawPrev=cat.yaw;
+  var lagT=clamp(-yr*0.35,-0.9,0.9);cat.tailV=(cat.tailV||0)+((lagT-(st.tailLag||0))*38-(cat.tailV||0)*7)*dt;st.tailLag=(st.tailLag||0)+cat.tailV*dt;
+  /* and the tip flicks now and then (more when cross or stalking) */
+  if(!cat.sleeping&&Math.random()<dt*(ex==='annoyed'||cat.hunt?0.9:0.12)){cat.tipA=rnd(0.5,1)*(Math.random()<0.5?-1:1);cat.tipPh=0;}
+  cat.tipPh=(cat.tipPh||0)+dt*13;cat.tipA=(cat.tipA||0)*Math.pow(0.06,dt);st.tipF=cat.tipA*Math.sin(cat.tipPh);
 }
 var dexTimers={};function dexLater(id,s){if(SV.dex[id])return;var t=now();if(!dexTimers[id])dexTimers[id]=t;if(t-dexTimers[id]>s)dex(id)}
 
@@ -803,8 +841,10 @@ cv.addEventListener('pointerup',onUp);cv.addEventListener('pointercancel',onUp);
 cv.addEventListener('wheel',function(e){e.preventDefault();cam.distT=clamp(cam.distT*Math.exp(e.deltaY*0.0012),1.4,34)},{passive:false});
 ['gesturestart','gesturechange'].forEach(function(n){document.addEventListener(n,function(e){e.preventDefault()},{passive:false})});
 function onTap(x,y,m){if(STUDIO.on)return;var hc=hitCat(x,y);
+  if(hc||hitCat2(x,y))try{navigator.vibrate&&navigator.vibrate(12)}catch(e){} /* rung nhẹ khi chạm trúng bé (điện thoại Android) */
   if(hc){for(var hi=0;hi<4;hi++)setTimeout(function(){heartAt(x,y)},hi*70);if(cat.sleeping){hint(SV.name+' đang ngủ, khẽ gừ gừ…');cat.purr=0.6;return}mewNow(Math.random()<0.5?'trill':'');cat.hopT=now();cat.lookP=cam.eye;cat.exHold=now()+0.8;SV.stats.tt=Math.min(100,SV.stats.tt+0.5);
     if(!cat.script||cat.script.name==='idle'||cat.script.name==='wander')setScript('look',[{pose:'sit',dur:2.2,tick:function(){cat.lookP=cam.eye;cat.ex='smile'}}]);return}
+  if(hitCat2(x,y)){for(var h2=0;h2<3;h2++)setTimeout(function(){heartAt(x,y)},h2*80);mewNow('trill');cat2.touched(now());return}
   if(tool==='ball'){var p=floorPoint(x,y);if(p)throwBall(p);return}
   if(cup.st==='floor'){var s=toScreen(cup.p);if(Math.hypot(s[0]-x,s[1]-y)<40){cup.st='home';cup.p=v3(CUP_HOME);cup.rot=0;cup.w=0;hint('Đã đặt lại cốc lên bàn');}}}
 
@@ -824,14 +864,21 @@ function drawDynamic(D,shadow){if(!SV)return;var dr=shadow?function(g,m){E.drawD
   dr(Gd.cup,M(T(cup.p),RX(cup.rot)));
   if(lure.on){var lp=lure.p,tp2=lure.tip,sd=sub(tp2,lp),sl=len3(sd)||1e-3,yaw2=Math.atan2(lure.v[0],lure.v[2]);dr(Gd.lure,M(T(lp[0],lp[1]+0.04,lp[2]),RY(yaw2)));
     if(!shadow){dr(Gd.string,C.alignY([lp[0],lp[1]+0.06,lp[2]],sd,sl));var rd=nrm(sub(cam.eye,tp2));dr(Gd.rod,C.alignY(tp2,[rd[0]*0.6,1,rd[2]*0.6],2.6));}}}
+/* ======================= bé mèo thứ hai (dựng trong Blender, xem blendercat.js) ======================= */
+var cat2=null;
+if(window.BlenderCat)window.BlenderCat.load(E,'meo-blender.bin?v=1').then(function(k){cat2=k}).catch(function(err){console.error('[meo-blender] '+err.message)});
+function cat2World(){return {sdWorld:sdWorld,sdGrad:sdGrad,navPath:navPath,randFloor:randFloor,main:catReady?{x:cat.x,y:cat.y+cat.hop,z:cat.z,yaw:cat.yaw,S:SC}:null}}
+function cat2On(){return cat2&&catReady&&!STUDIO.on}
+function hitCat2(sx,sy){if(!cat2On()||!cat2.r)return false;var r=ray(sx,sy),s=cat2.spheres();
+  return raySphere(r,cat2.r.headPos,0.24)>0||s.some(function(b){return raySphere(r,[b[0],0.35,b[1]],b[2]+0.06)>0});}
 function render(t){
   var env=ENV,shOn=shadowOK&&Q.lvl>0&&env.sunI>0.2;
   /* the surface the cat rests on (floor, sill, box bottom); none while it is in the air */
   cat.st.floor=cat.poseObj?-100:cat.y;E.floorY=cat.st.floor;
   if(shOn){var c=[0,1.5,-0.5],L=env.L,ey=add(c,scl(L,26));LVP=mul(C.ortho(-11.5,11.5,-11.5,11.5,4,50),C.lookAt(ey,c,Math.abs(L[1])>0.98?[0,0,1]:[0,1,0]));
     if(E.shadowBegin(LVP)){E.drawD(Gw,I);for(var i=0;i<4;i++)E.drawD(Gwalls[i].m,I);drawDynamic(Gd,true);
-      if(catReady){var r0=C.poseCat(CAT,cat.st,catM0(),t);E.drawSkinD(GC.skin,r0.dq,r0.R0);E.drawD(GC.head,r0.head);E.drawD(GC.chest,r0.chest);}E.shadowEnd();}}
-  E.begin(cv.width,cv.height,cam.VP,cam.eye,env.L,env.fog,{amb0:env.amb0,amb1:env.amb1,sun:env.sun,lampP:env.lampP,lampC:env.lampC,shadow:shOn,k:env.k,exp:env.exp,smr:Q.lvl>1?2.4:1.8});
+      if(catReady){var r0=C.poseCat(CAT,cat.st,catM0(),t);E.drawSkinD(GC.skin,r0.dq,r0.R0);E.drawD(GC.head,r0.head);E.drawD(GC.chest,r0.chest);}if(cat2On())cat2.drawShadow();E.shadowEnd();}}
+  E.begin(cv.width,cv.height,cam.VP,cam.eye,env.L,env.fog,{amb0:env.amb0,amb1:env.amb1,sun:env.sun,lampP:env.lampP,lampC:env.lampC,shadow:shOn,k:env.k,exp:env.exp,smr:Q.lvl>1?2.4:1.8,view:cam.V});
   E.draw(Gw,I);E.draw(Gfloor,I,null,texFloor);
   for(var w=0;w<4;w++)if(wallVisible(w,cam.eye)){E.draw(Gwalls[w].m,I);E.draw(Gwalls[w].p,I,null,texWall);}
   if(wallVisible(0,cam.eye)){E.draw(Gd.sky,I,env.sky);var cc=mix([1,1,1],env.sky,0.35+0.4*(1-env.day)).slice(0,3);clouds.forEach(function(c){E.draw(Gd.cloud,M(T(c.x,c.y,-RZH-2.4),Sc(c.s)),cc)});
@@ -841,9 +888,11 @@ function render(t){
   drawDynamic(Gd,false);
   if(catReady){for(var cs=0;cs<3;cs++){cat.r=C.poseCat(CAT,cat.st,catM0(),t);var bx=cat.x,bz=cat.z;collideSkin();if(bx===cat.x&&bz===cat.z)break;}
     cat.r=C.drawCat(E,GC,CAT,catM0(),cat.st,t);}
+  if(cat2On())cat2.draw();
   /* soft sprites */
   E.sprites([cam.V[0],cam.V[4],cam.V[8]],[cam.V[1],cam.V[5],cam.V[9]]);
   if(catReady){var sh=1-Math.min(0.6,cat.hop+Math.max(0,cat.y-0.25)*0.0),gy=cat.y>0.3?cat.y:0;E.sprite([cat.x,gy+0.015,cat.z-0.05*SC],[0.55*SC*sh+0.1,0.8*SC*sh+0.1],[0.25,0.15,0.2,0.3],1.6,false);}
+  if(cat2On()&&cat2.r)E.sprite([cat2.x,0.015,cat2.z],[0.4,0.55],[0.25,0.15,0.2,0.3],1.6,false);
   if(ball.on)E.sprite([ball.x,0.015,ball.z],[0.32,0.32],[0.25,0.15,0.2,0.28],1.5,false);
   [[OBJ.bed.c,1.6],[OBJ.litter.c,1.7],[OBJ.box.c,1.4],[OBJ.post,1.0],[OBJ.table.c,1.9]].forEach(function(o){E.sprite([o[0][0],0.012,o[0][2]],[o[1],o[1]*0.8],[0.25,0.15,0.2,0.14],1.3,false)});
   if(env.lampC[0]>0.1)E.sprite([env.lampP[0]-0.1,env.lampP[1]-0.15,env.lampP[2]],[1.4,1.4],[env.lampC[0]*0.35,env.lampC[1]*0.35,env.lampC[2]*0.35,0.5],2.2,true,true);
@@ -946,6 +995,10 @@ function frame(){requestAnimationFrame(frame);if(document.hidden)return;if(windo
   if(cv.width!==Math.round(innerWidth*DPR)||cv.height!==Math.round(innerHeight*DPR))resize();
   envAt(hourNow());if(liveTime){$('tSlider').value=ENV.h.toFixed(2)}var hh=Math.floor(ENV.h),mm=Math.floor((ENV.h-hh)*60);$('clock').textContent=(hh<10?'0':'')+hh+':'+(mm<10?'0':'')+mm;
   if(SV&&catReady){if(!STUDIO.on)tickStats(dt);updateCat(dt,t);if(STUDIO.on)studioHud();}
+  if(cat2On()){cat2.update(dt,t,cat2World());
+    /* bé chính chạy nhanh có thể lao vào bé Blender trong một khung: đẩy bé chính lùi ra, rồi lại giữ khỏi đồ đạc */
+    if(cat.y<0.5&&!cat.poseObj)for(var it2=0;it2<3;it2++){var g2=cat2.gapMain({x:cat.x,z:cat.z,yaw:cat.yaw,S:SC});if(g2.gap>=0.01)break;
+      var pu=0.01-g2.gap;cat.x+=g2.dx*pu;cat.z+=g2.dz*pu;cat.v*=0.5;collideCat();}}
   if(SV){updWorld(dt,t);laserJitter(t);}updCam(dt);render(t);
   if(SV&&catReady){updHud();statT+=dt;if(statT>0.4){statT=0;updStats();}saveT+=dt;if(saveT>5){saveT=0;save();}growT+=dt;if(growT>20){growT=0;checkGrowth();}}
   /* adaptive resolution: if the phone struggles, render fewer pixels */
@@ -973,5 +1026,5 @@ if(SV&&!SV.q2){SV.q=2;SV.q2=1;}
 if(SV){if(SV.q>=0)applyQ(SV.q);else applyQ(Q.lvl);SV._away=offline();setSound(SV.sound!==false);start(false);}else{applyQ(Q.lvl);onboard();}
 requestAnimationFrame(frame);
 /* test/debug handle */
-window.__meo={ac:ac,mewSample:mewSample,get MEOW(){return MEOW},STUDIO:STUDIO,studioOpen:studioOpen,studioPlay:studioPlay,studioView:studioView,get POSE(){return POSE},get CAT(){return CAT},E:E,Q:Q,sdWorld:sdWorld,navPath:navPath,feet:function(){return feet},cam:cam,cat:cat,get SV(){return SV},setScript:setScript,B:{eat:bEat,sleep:bSleep,groom:bGroom,scratch:bScratch,litter:bLitter,window:bWindow,box:bBox,cup:bKnockCup,zoom:bZoomies,tail:bChaseTail,att:bAttention,rub:bRub,sun:bSun},onTool:function(id){onTool(TOOLS.filter(function(t){return t[0]===id})[0])},lure:lure,laser:laser,ball:ball,cup:cup,throwBall:throwBall};
+window.__meo={get cat2(){return cat2},cat2World:cat2World,ac:ac,mewSample:mewSample,get MEOW(){return MEOW},STUDIO:STUDIO,studioOpen:studioOpen,studioPlay:studioPlay,studioView:studioView,get POSE(){return POSE},get CAT(){return CAT},E:E,Q:Q,sdWorld:sdWorld,navPath:navPath,feet:function(){return feet},cam:cam,cat:cat,get SV(){return SV},setScript:setScript,B:{eat:bEat,sleep:bSleep,groom:bGroom,scratch:bScratch,litter:bLitter,window:bWindow,box:bBox,cup:bKnockCup,zoom:bZoomies,tail:bChaseTail,att:bAttention,rub:bRub,sun:bSun},onTool:function(id){onTool(TOOLS.filter(function(t){return t[0]===id})[0])},lure:lure,laser:laser,ball:ball,cup:cup,throwBall:throwBall};
 })();

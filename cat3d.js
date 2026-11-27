@@ -83,7 +83,7 @@ function heart3(d){return function(u,v){var a=u*PI,h=heart2(v*TAU),s=Math.pow(Ma
    backlit tips. When the device can take it, the frame goes through a post chain: SSAO, bloom, FXAA, vignette, grain. */
 var VS1='attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec2 aT;attribute vec2 aR;uniform mat4 uVP,uM;uniform vec3 uTint;varying vec3 vN,vW,vR,vTg;varying vec4 vC;varying vec2 vT,vM;varying float vF,vSh;'+
  'void main(){vR=aP;vF=0.;vSh=0.;vTg=vec3(0.);vM=aR;vec4 w=uM*vec4(aP,1.);vW=w.xyz;vN=(uM*vec4(aN,0.)).xyz;vC=vec4(aC.rgb*uTint,aC.a);vT=aT;gl_Position=uVP*w;}';
-var VS3='attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec4 aB;attribute vec4 aW;uniform mat4 uVP,uR0;uniform vec4 uQ[48];uniform vec3 uTint;uniform float uSh,uFL,uFloor;varying vec3 vN,vW,vR,vTg;varying vec4 vC;varying vec2 vT,vM;varying float vF,vSh;'+
+var VS3='attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec4 aB;attribute vec4 aW;uniform mat4 uVP,uR0;uniform vec4 uQ[80];uniform vec3 uTint;uniform float uSh,uFL,uFloor;varying vec3 vN,vW,vR,vTg;varying vec4 vC;varying vec2 vT,vM;varying float vF,vSh;'+
  'void main(){int i0=int(aB.x+0.5),i1=int(aB.y+0.5),i2=int(aB.z+0.5),i3=int(aB.w+0.5);vec4 r0=uQ[i0*2],q=r0*aW.x,d=uQ[i0*2+1]*aW.x,rk;'+
  'rk=uQ[i1*2];float sg=dot(r0,rk)<0.?-aW.y:aW.y;q+=rk*sg;d+=uQ[i1*2+1]*sg;'+
  'rk=uQ[i2*2];sg=dot(r0,rk)<0.?-aW.z:aW.z;q+=rk*sg;d+=uQ[i2*2+1]*sg;'+
@@ -447,7 +447,7 @@ function buildCat(o){
   for(var vi=0;vi<net.P.length;vi+=3){var p=[net.P[vi],net.P[vi+1],net.P[vi+2]],nn=[net.N[vi],net.N[vi+1],net.N[vi+2]];wAt(p,m.B,m.W);
     var col=o.color(p,nn,J,S,hc);m.C.push(col[0],col[1],col[2],0);}
   /* rigid parts riding on bones, positioned on the real SDF surface */
-  var parts={head:[],chest:[]},hd=new Mesh(),eyes=[new Mesh(),new Mesh()],pup=[new Mesh(),new Mesh()],eyeF=[],eyeFi=[],blushP=[],tongue=new Mesh(),beans=[new Mesh(),new Mesh()],eyeC=[],happy=[new Mesh(),new Mesh()],wink=[new Mesh(),new Mesh()],mouth=[],lipM=new Mesh(),mouthTop=null;
+  var parts={head:[],chest:[]},hd=new Mesh(),eyes=[new Mesh(),new Mesh()],pup=[new Mesh(),new Mesh()],eyeF=[],eyeFi=[],blushP=[],tongue=new Mesh(),beans=[new Mesh(),new Mesh()],eyeC=[],happy=[new Mesh(),new Mesh()],wink=[new Mesh(),new Mesh()],mouth=[],lipM=new Mesh(),mouthTop=null,wk=[new Mesh(),new Mesh()],wkR=[[0,0,0],[0,0,0]],noseM=new Mesh();
   function onS(dir,from){return D.hit(from||hc,nrm(dir),r(0.4))}
   function frameZ(n){var z=nrm(n),x=nrm(cross([0,1,0],z)),y=cross(z,x);return [x[0],x[1],x[2],0,y[0],y[1],y[2],0,z[0],z[1],z[2],0,0,0,0,1]}
   var er=r(.05*Hf*(o.eyeK||1));
@@ -487,8 +487,8 @@ function buildCat(o){
     wink[i].surf(tube(polyCurve(wp),capR(er*0.08),40),40,8,H('#3a2228'));
     if(o.blush)blushP.push(onS([s*0.72,-0.34,0.6]).p);
   });
-  var nz=onS([0,-0.33,1]),nose=M(T(nz.p),frameZ(nz.n));hd.m(0.32,8);lipM.m(0.55,0);tongue.m(0.3,8);
-  hd.surf(function(u,vv){var a=vv*TAU,t=u*PI,R=r(.016*Hf)*(1-0.3*Math.max(0,-Math.sin(a)));return [R*Math.sin(t)*Math.cos(a),R*0.75*Math.sin(t)*Math.sin(a),R*0.55*Math.cos(t)]},10,16,o.nose,nose);
+  var nz=onS([0,-0.33,1]),nose=M(T(nz.p),frameZ(nz.n));noseM.m(0.32,8);lipM.m(0.55,0);tongue.m(0.3,8);
+  noseM.surf(function(u,vv){var a=vv*TAU,t=u*PI,R=r(.016*Hf)*(1-0.3*Math.max(0,-Math.sin(a)));return [R*Math.sin(t)*Math.cos(a),R*0.75*Math.sin(t)*Math.sin(a),R*0.55*Math.cos(t)]},10,16,o.nose,nose);
   function proj(x,y){return D.hit([hc[0]+x,hc[1]+y,hc[2]],[0,0,1],r(0.3)).p}
   lipM.surf(tube(function(u){var x=(u-0.5)*r(.062*Hf),y=(nz.p[1]-hc[1])-r(.02*Hf)-r(.012*Hf)*Math.abs(Math.sin(TAU*u));var q=proj(x,y);return add(q,[0,0,r(.0015)])},capR(r(.0018*Hf*(1-RE*0.4))),36),36,5,o.lip);
   hd.m(0.55,0);hd.surf(tube(function(u){var y=(nz.p[1]-hc[1])-r(.009*Hf)-u*r(.011*Hf);return add(proj(0,y),[0,0,r(.0015)])},cst(r(.0016*Hf)),6),6,5,o.lip);
@@ -507,9 +507,11 @@ function buildCat(o){
   /* whiskers: four long, tapering, slightly glowing white hairs per side from the whisker pads, plus two brow whiskers above each eye */
   var WK=[o.whisker[0],o.whisker[1],o.whisker[2],0.35];
   /* many fine whiskers from the pads below the nose, fanning down and forward, each a little different */
-  hd.m(0.35,0);[-1,1].forEach(function(s){for(var w=0;w<9;w++){var row=w%3,col_=Math.floor(w/3),rt=onS([s*(0.2+0.07*col_),-0.46-row*0.04,0.88]).p,
+  /* pad whiskers are their own meshes (wk[0] left, wk[1] right) so they can sweep forward, flatten back and twitch */
+  hd.m(0.35,0);[-1,1].forEach(function(s){var wm=wk[s>0?1:0].m(0.35,0),acc=[0,0,0];for(var w=0;w<9;w++){var row=w%3,col_=Math.floor(w/3),rt=onS([s*(0.2+0.07*col_),-0.46-row*0.04,0.88]).p;acc=add(acc,scl(rt,1/9));var
       dv=nrm([s*1,0.1-row*0.17-0.05*col_+0.06*Math.sin(w*2.7),0.12-0.13*col_]),L=r((.21+0.03*col_+0.022*Math.sin(w*4.1))*Hf);
-    hd.surf(tube(bez(rt,add(rt,add(scl(dv,L*0.33),[0,L*0.03,L*0.07])),add(rt,add(scl(dv,L*0.68),[0,-L*0.02,L*0.05])),add(rt,add(scl(dv,L),[0,-L*0.19,-L*0.02]))),function(u){return r(.00135)*(1-0.78*u)},18),18,4,WK);}
+    wm.surf(tube(bez(rt,add(rt,add(scl(dv,L*0.33),[0,L*0.03,L*0.07])),add(rt,add(scl(dv,L*0.68),[0,-L*0.02,L*0.05])),add(rt,add(scl(dv,L),[0,-L*0.19,-L*0.02]))),function(u){return r(.00135)*(1-0.78*u)},18),18,4,WK);}
+    wkR[s>0?1:0]=acc;
     for(var w2=0;w2<2;w2++){var eb=onS([s*(0.42+w2*0.1),0.38,0.75]).p,dv2=nrm([s*0.6,0.8,0.15]),L2=r((.11-0.02*w2)*Hf);
     hd.surf(tube(bez(eb,add(eb,scl(dv2,L2*0.35)),add(eb,add(scl(dv2,L2*0.7),[s*L2*0.15,0,0])),add(eb,add(scl(dv2,L2),[s*L2*0.35,-L2*0.15,0]))),function(u){return r(.0012)*(1-0.8*u)},12),12,4,WK);}});
   /* little tongue (blep) hanging from the lip line */
@@ -540,9 +542,14 @@ function buildCat(o){
     else{Lh=lerp(0.3,1,sm(0.05,0.22,y));if(z>0.12&&y>0.2&&y<0.44)Lh=1.25;Lh*=sm(0.008,0.035,y);
       for(e2=0;e2<beanP.length;e2++)Lh*=sm(0.012,0.03,len3(sub(p,beanP[e2]))/S);}
     m.C[ci+3]=Lh;}
+  /* breathing: how much each skin vertex swells with a breath. Ribs and belly between the shoulders and the hips,
+     most on the lower flanks and the belly, nothing on the spine line, the legs or the head */
+  m.BR=new Array(net.P.length/3);
+  for(vi=0;vi<net.P.length;vi+=3){var bx=net.P[vi]/S,by=net.P[vi+1]/S,bz=net.P[vi+2]/S,nx_=net.N[vi],ny_=net.N[vi+1];
+    m.BR[vi/3]=sm(-0.27,-0.12,bz)*sm(0.25,0.1,bz)*sm(0.13,0.21,by)*sm(0.45,0.33,by)*Math.min(1,Math.max(0,0.25-ny_*0.9+Math.abs(nx_)*0.45))*sm(0.02,0.06,Math.abs(bx)+Math.max(0,0.3-by));}
   if(o.extraHead)o.extraHead(hd,{onS:onS,hc:hc,r:r,hv:hv,frameZ:frameZ});
   var ch=new Mesh();if(o.extraChest)o.extraChest(ch,{D:D,J:J,r:r,v:v,frameZ:frameZ});
-  return {S:S,J:J,eyeR:er,headRad:r(hr*1.06),pupilK:o.pupilK||1,mesh:m,head:hd,chest:ch,eyes:eyes,lip:lipM,pup:pup,eyeF:eyeF,eyeFi:eyeFi,tongue:tongue,beans:beans,fur:{n:o.shells||10,len:r(o.furLen||.02),den:(o.furDen||60)/S},eyeC:eyeC,happy:happy,wink:wink,mouth:mouth,mouthTop:mouthTop,D:D,
+  return {S:S,J:J,eyeR:er,headRad:r(hr*1.06),pupilK:o.pupilK||1,mesh:m,head:hd,wk:wk,wkR:wkR,noseM:noseM,noseP:nz.p,chest:ch,eyes:eyes,lip:lipM,pup:pup,eyeF:eyeF,eyeFi:eyeFi,tongue:tongue,beans:beans,fur:{n:o.shells||10,len:r(o.furLen||.02),den:(o.furDen||60)/S},eyeC:eyeC,happy:happy,wink:wink,mouth:mouth,mouthTop:mouthTop,D:D,
     La:[len3(sub(J.FE[0],J.FS[0])),len3(sub(J.FW[0],J.FE[0])),len3(sub(J.FP[0],J.FW[0]))],Lb:[len3(sub(J.BK[0],J.BH[0])),len3(sub(J.BA[0],J.BK[0])),len3(sub(J.BP[0],J.BA[0]))]};
 }
 
@@ -591,7 +598,11 @@ function poseCat(c,st,M0,t){
       Sn=M(T(scl(lu,0.5)),Sn);Sh=M(T(lu),Sh);}}
   var out=[Sp,Sl,St,Sn,Sh],prev=Sp,tt=st.tailT,A=st.tailSw,cu=st.tailCurl;
   var flat0=st.floor>-50&&R0[5]>0.8; /* upright on a surface (not rolled over, not airborne) */
-  for(var i=0;i<5;i++){var jt=J.TL[i];prev=M(prev,T(jt),RX(st.tailUp*(0.36-0.05*i)+0.035*i),RY(Math.sin(tt-i*0.55)*A*(0.42+0.18*i)+cu*(0.4+0.17*i)-la*0.12),T(ng(jt)));
+  /* tail: a slow wave plus a slower one out of step (never a metronome), the lag of a heavy tail when the body turns,
+     and a flick that runs out to the tip */
+  var tlag=st.tailLag||0,tip=st.tipF||0;
+  for(var i=0;i<5;i++){var jt=J.TL[i],sw=Math.sin(tt-i*0.55)*A*(0.42+0.18*i)+Math.sin(tt*0.43+1.7-i*0.4)*A*(0.1+0.07*i);
+    prev=M(prev,T(jt),RX(st.tailUp*(0.36-0.05*i)+0.035*i-(i>=3?Math.abs(tip)*0.25:0)),RY(sw+cu*(0.4+0.17*i)-la*0.12+tlag*(0.12+0.09*i)+(i>=2?tip*(i-1)*0.32:0)),T(ng(jt)));
     /* the tail rests ON the floor: if a segment would end below its own radius, bend it up at its root joint */
     if(flat0){var P1=xf(prev,jt),P2=xf(prev,J.TL[i+1]),rad=(0.047-0.004*i)*S;
       if(xf(R0,P2)[1]-st.floor<rad){var vy=P2[1]-P1[1],vz=P2[2]-P1[2],L=Math.hypot(vy,vz),dh=rad-(xf(R0,P2)[1]-st.floor);
@@ -634,7 +645,7 @@ function poseCat(c,st,M0,t){
     headPos:xf(M(R0,Sh),J.HC),pawL:xf(R0,feet[0]),pawR:xf(R0,feet[1]),shoulderMid:xf(M(R0,St),mix(J.FS[0],J.FS[1],0.5).slice(0,3)),R0:R0,Scb:St};
 }
 /* draw: skinned body + rigid head/chest parts + blinking eyes */
-function uploadCat(E,c){return {skin:E.uploadSkin(c.mesh),head:E.upload(c.head),chest:E.upload(c.chest),eyes:[E.upload(c.eyes[0]),E.upload(c.eyes[1])],happy:[E.upload(c.happy[0]),E.upload(c.happy[1])],wink:[E.upload(c.wink[0]),E.upload(c.wink[1])],mouth:c.mouth.map(function(q){return E.upload(q)}),lip:E.upload(c.lip),pup:[E.upload(c.pup[0]),E.upload(c.pup[1])],tongue:E.upload(c.tongue),beans:[E.uploadSkin(c.beans[0]),E.uploadSkin(c.beans[1])]}}
+function uploadCat(E,c){return {wk:c.wk&&c.wk[0].P.length?[E.upload(c.wk[0]),E.upload(c.wk[1])]:null,noseM:c.noseM&&c.noseM.P.length?E.upload(c.noseM):null,skin:E.uploadSkin(c.mesh),head:E.upload(c.head),chest:E.upload(c.chest),eyes:[E.upload(c.eyes[0]),E.upload(c.eyes[1])],happy:[E.upload(c.happy[0]),E.upload(c.happy[1])],wink:[E.upload(c.wink[0]),E.upload(c.wink[1])],mouth:c.mouth.map(function(q){return E.upload(q)}),lip:E.upload(c.lip),pup:[E.upload(c.pup[0]),E.upload(c.pup[1])],tongue:E.upload(c.tongue),beans:[E.uploadSkin(c.beans[0]),E.uploadSkin(c.beans[1])]}}
 /* e: eye shapes, m: mouth open, p: pupil [w,h] (cats: slit when calm, big & round when excited), s: eye size, b: tongue out, o/f: ears out/forward */
 var EXPR={normal:{e:['open','open'],m:0,p:[1.12,1.18],s:1,b:0,o:0,f:0},smile:{e:['open','open'],m:0.45,p:[1.15,1.2],s:1.03,b:0,o:0.05,f:0.05},
   laugh:{e:['happy','happy'],m:1,p:[1,1],s:1,b:0,o:0.18,f:-0.12},wink:{e:['open','wink'],m:0.8,p:[1,1.1],s:1.02,b:0,o:0.12,f:0.1},
@@ -647,10 +658,22 @@ function expr(st,name,dt){var X=EXPR[name]||EXPR.normal,k=1-Math.pow(0.0005,dt),
 var FURQ=1,fpA=0,fpN=0;function setFurQ(q){FURQ=q}function getFurQ(){return FURQ}function furPerf(d){if(d>0.2)return;fpA+=d;if(++fpN>=45){if(fpA/fpN>0.05&&FURQ>0.6)FURQ-=0.1;fpA=0;fpN=0;}}
 var NOFUR={n:0,len:0,den:0};
 function drawCat(E,g,c,M0,st,t,tint){
-  var r=poseCat(c,st,M0,t);E.floorY=st.floor===undefined?-100:st.floor;E.drawSkin(g.skin,r.dq,r.R0,tint,{n:Math.max(3,Math.round(c.fur.n*FURQ)),len:c.fur.len,den:c.fur.den});E.draw(g.head,r.head,tint);E.draw(g.chest,r.chest,tint);
+  var r=poseCat(c,st,M0,t);E.floorY=st.floor===undefined?-100:st.floor;E.breath=st.breath||0;E.drawSkin(g.skin,r.dq,r.R0,tint,{n:Math.max(3,Math.round(c.fur.n*FURQ)),len:c.fur.len,den:c.fur.den});E.breath=0;E.draw(g.head,r.head,tint);E.draw(g.chest,r.chest,tint);
   E.drawSkin(g.beans[0],r.dq,r.R0,tint,NOFUR);E.drawSkin(g.beans[1],r.dq,r.R0,tint,NOFUR);
   if(st.blep>0.03){var tt=c.tongue.top;E.draw(g.tongue,M(r.head,T(tt),Sc(1,Math.min(1,st.blep),1),T(-tt[0],-tt[1],-tt[2])));}
-  var b=Math.max(0.08,st.blink);for(var i=0;i<2;i++){var md=st.eye[i];if(md==='happy'||(b<0.2&&md==='open'&&st.mouth>0.4))E.draw(g.happy[i],r.head);else if(md==='wink')E.draw(g.wink[i],r.head);else{var ec=c.eyeC[i],es=st.eyeS,EM=M(r.head,T(ec),Sc(es,b*es,1),T(-ec[0],-ec[1],-ec[2]));E.draw(g.eyes[i],EM);var gz=st.gaze||[0,0],er=c.eyeR;E.draw(g.pup[i],M(EM,c.eyeF[i],T(gz[0]*er*0.2,gz[1]*er*0.14,Math.hypot(gz[0],gz[1])*er*0.03),Sc(st.pup[0]*(c.pupilK||1),st.pup[1]*(c.pupilK||1),1),c.eyeFi[i]));}}
+  /* whiskers sweep forward when curious or sniffing, flatten back when cross; the nose twitches while it sniffs */
+  if(g.wk){var wf=st.whF||0,wt=st.whT||0,sn=st.sniffV||0;
+    for(var w=0;w<2;w++){var wr=c.wkR[w],sg=w?1:-1;E.draw(g.wk[w],M(r.head,T(wr),RY(-sg*(wf*0.45+wt*0.12)),RX(-wf*0.12+wt*0.05),T(-wr[0],-wr[1],-wr[2])));}
+    var np=c.noseP;E.draw(g.noseM,M(r.head,T(np),T(0,sn*c.eyeR*0.035,0),Sc(1+Math.abs(sn)*0.07,1+sn*0.05,1),T(-np[0],-np[1],-np[2])));}
+  /* eyes: the lids close over the eye (mostly the upper lid, so the line of closure sits a little below the middle).
+     A content cat narrows its eyes instead of drawing cartoon arcs; the pupils are slits in bright light and open
+     wide in the dark or when excited (st.pupL, st.pupH from the game) */
+  for(var i=0;i<2;i++){var md=st.eye[i],lid=Math.max(st.lid||0,md==='happy'?0.62:md==='wink'?0.85:0,st.blink<0.2&&st.mouth>0.4?0.7:0);
+    var b=Math.max(0.08,Math.min(st.blink,1-lid));
+    if(!g.wk&&(md==='happy'||(b<0.2&&md==='open'&&st.mouth>0.4))){E.draw(g.happy[i],r.head);continue;}
+    var ec=c.eyeC[i],es=st.eyeS,er=c.eyeR,cy=ec[1]-er*0.3,EM=M(r.head,T(ec[0],cy,ec[2]),Sc(es,b*es,1),T(-ec[0],-cy,-ec[2]));E.draw(g.eyes[i],EM);
+    var gz=st.gaze||[0,0],pk=c.pupilK||1,pl=st.pupL===undefined?1:st.pupL;
+    E.draw(g.pup[i],M(EM,c.eyeF[i],T(gz[0]*er*0.2,gz[1]*er*0.14,Math.hypot(gz[0],gz[1])*er*0.03),Sc(st.pup[0]*pk*pl,st.pup[1]*pk*(st.pupH||1),1),c.eyeFi[i]));}
   if(st.mouth>0.1)E.draw(g.mouth[Math.max(0,Math.min(4,Math.round(st.mouth*5)-1))],r.head);else E.draw(g.lip,r.head);
   return r;
 }
