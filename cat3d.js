@@ -241,6 +241,8 @@ function makeEngine(cv){
     quadDraw(PC);gl.activeTexture(gl.TEXTURE0);gl.depthMask(true);}
   var E={gl:gl,ok:!sceneBad,
     upload:function(m){return {p:buf(m.P,Float32Array),n:buf(m.N,Float32Array),c:buf(m.C,Float32Array),t:buf(m.UV,Float32Array),r:m.R&&m.R.length?buf(m.R,Float32Array):null,i:buf(m.I,U32?Uint32Array:Uint16Array,gl.ELEMENT_ARRAY_BUFFER),cnt:m.I.length};},
+    /* new vertex positions for an uploaded mesh (same vertex count): shapes that change continuously */
+    setVerts:function(g,P){gl.bindBuffer(gl.ARRAY_BUFFER,g.p);gl.bufferSubData(gl.ARRAY_BUFFER,0,P);},
     uploadSkin:function(m){return {p:buf(m.P,Float32Array),n:buf(m.N,Float32Array),c:buf(m.C,Float32Array),b:buf(m.B,Float32Array),w:buf(m.W,Float32Array),i:buf(m.I,U32?Uint32Array:Uint16Array,gl.ELEMENT_ARRAY_BUFFER),cnt:m.I.length};},
     setTex:function(tx,canvas){gl.bindTexture(gl.TEXTURE_2D,tx);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);
       gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,canvas);gl.generateMipmap(gl.TEXTURE_2D);
@@ -457,11 +459,16 @@ function buildCat(o){
     function hitAt(x,y){var X=x*Math.cos(SL)+y*Math.sin(SL),Y=-x*Math.sin(SL)+y*Math.cos(SL);var w=xf(F0,[X,Y,0]);return D.hit(hc,nrm(sub(w,hc)),r(0.5))}
     function dome(x,y,lift){var hh=hitAt(x,y);return add(hh.p,scl(hh.n,lift))}
     function lift(rho){return r(.0012)+er*0.11*Math.max(0,1-rho*rho)}
+    /* the opening of a cat's eye is an almond: pointed corners, the outer one higher than the inner one. The iris stays
+       round, so the lids cut across its top and bottom like on a real cat. AL 0 = round kitten eye, 1 = adult almond */
+    var AL=o.almond===undefined?0.5:o.almond,EW=lerp(1.04,1.18,AL),EHu=lerp(1.04,0.86,AL),EHl=lerp(1.0,0.76,AL),EPu=lerp(2.3,1.85,AL),EPl=lerp(2.3,1.6,AL),TLT=s*lerp(0.05,0.2,AL);
+    function rimR(a){var b=a-TLT,cb=Math.abs(Math.cos(b)),sb=Math.sin(b),H_=sb>=0?EHu:EHl,P_=sb>=0?EPu:EPl,lo=0,hi=1.6;sb=Math.abs(sb);
+      for(var it=0;it<22;it++){var md_=(lo+hi)/2,f=md_*sb-H_*(1-Math.pow(Math.min(1,md_*cb/EW),P_));if(f>0)hi=md_;else lo=md_;}return Math.min(lo,EW)}
     eyes[i].m(0.06,6);pup[i].m(0.06,6);happy[i].m(0.7,0);wink[i].m(0.7,0);
     /* a living eye reads as a wet dome under a lid: fine radial fibres, a warm collar round the pupil, a dark limbal ring,
        light pooling in the lower iris (it crosses the eyeball from the glint above) and the upper lid's shadow over all of it */
-    function lidShade(c,y){var k=1-0.68*sm(0.12,0.92,y);return [c[0]*k,c[1]*k,c[2]*k*1.03,c[3]||0]}
-    eyes[i].surf(function(u,vv){var a=vv*TAU;return dome(u*er*Math.cos(a),u*er*EY*Math.sin(a),lift(u))},28,72,function(u,vv){var a=vv*TAU,x=u*Math.cos(a),y=u*Math.sin(a),rr=u;
+    function lidShade(c,y){var k=1-0.68*sm(0.1,EHu*0.96,y);return [c[0]*k,c[1]*k,c[2]*k*1.03,c[3]||0]}
+    eyes[i].surf(function(u,vv){var a=vv*TAU,R_=rimR(a)*u;return dome(R_*er*Math.cos(a),R_*er*Math.sin(a),lift(u))},28,96,function(u,vv){var a=vv*TAU,rr=u*rimR(a),x=rr*Math.cos(a),y=rr*Math.sin(a);
       if(rr<0.3){return H('#0b0708')}
       var an=Math.atan2(y,x),fib=0.5+0.5*Math.sin(an*31+Math.sin(an*9)*2.6),fib2=0.5+0.5*Math.sin(an*17+rr*14);
       var c=mix(o.iris[0],o.iris[1],0.25+0.4*sm(-0.5,0.5,y));
@@ -472,14 +479,15 @@ function buildCat(o){
       c=mix(c,H('#1a0f0c'),0.88*sm(0.87,0.97,rr));
       return lidShade(c,y)});
     var c0=dome(0,0,lift(0)),hc0=hitAt(0,0),Fc=M(T(c0),frameZ(hc0.n));eyeF.push(Fc);eyeFi.push(rinv(Fc));eyeC.push(c0);
-    pup[i].surf(function(u,vv){var a=vv*TAU,q=u*0.5;return dome(q*er*Math.cos(a),q*er*EY*Math.sin(a),lift(q)+r(.0009))},10,48,function(u,vv){var c=mix(H('#050304'),H('#1a0f0c'),sm(0.82,1,u));return lidShade(c,u*0.5*Math.sin(vv*TAU))});
+    pup[i].surf(function(u,vv){var a=vv*TAU,q=u*0.5;return dome(q*er*Math.cos(a),q*er*1.12*Math.sin(a),lift(q)+r(.0009))},10,48,function(u,vv){var c=mix(H('#050304'),H('#1a0f0c'),sm(0.82,1,u));return lidShade(c,u*0.5*Math.sin(vv*TAU))});
     /* catchlights: one soft window reflection high on the same side in both eyes, plus a pin of bounce light */
-    eyes[i].m(0.06,6);[[0.27,0.36,0.17],[-0.28,-0.3,0.055]].forEach(function(g){var hh=hitAt(g[0]*er,g[1]*er*EY),rho=Math.hypot(g[0],g[1]);
+    eyes[i].m(0.06,6);[[0.27,0.33,0.155],[-0.28,-0.28,0.05]].forEach(function(g){var hh=hitAt(g[0]*er,g[1]*er),rho=Math.hypot(g[0],g[1]);
       eyes[i].surf(ell(er*g[2],er*g[2],er*0.05),8,10,H('#ffffff',1),M(T(add(hh.p,scl(hh.n,lift(rho)+r(.0016)))),frameZ(hh.n)));});
     eyes[i].m(0.7,0);
     /* the dark lid margin cats have all the way round: heavy above, fine below, running into the inner corner */
-    eyes[i].surf(tube(function(u){var a=u*TAU;return dome(Math.cos(a)*er*1.02,Math.sin(a)*er*EY*1.02,r(.0022))},function(u){var up=Math.max(0,Math.sin(u*TAU));return er*(0.013+(0.022+0.01*LW)*up)},64),64,6,H('#241614'));
-    eyes[i].surf(tube(function(u){var a=PI*(s>0?1.08:-0.08),x0=Math.cos(a)*er*1.02,y0=Math.sin(a)*er*EY*1.02;return dome(x0-s*u*er*0.11,y0-u*er*0.13,r(.0022))},function(u){return er*0.034*(1-0.85*u)},10),10,5,H('#4a2f28'));
+    eyes[i].surf(tube(function(u){var a=u*TAU,R_=rimR(a)*1.02;return dome(Math.cos(a)*er*R_,Math.sin(a)*er*R_,r(.0022))},function(u){var up=Math.max(0,Math.sin(u*TAU-TLT));return er*(0.016+(0.026+0.01*LW)*up)},96),96,6,H('#241614'));
+    /* the inner corner runs on down toward the nose as the dark tear line */
+    eyes[i].surf(tube(function(u){var a=(s>0?PI:0)+TLT,R_=rimR(a)*1.02,x0=Math.cos(a)*er*R_,y0=Math.sin(a)*er*R_;return dome(x0-s*u*er*0.13,y0-u*er*0.16,r(.0022))},function(u){return er*0.036*(1-0.85*u)},10),10,5,H('#3d241d'));
     // closed-eye shapes painted flush on the fur: gentle happy arch and wink
     var ap=[];for(var k=0;k<=12;k++){var a=PI*(0.2+0.6*k/12);ap.push(dome(Math.cos(a)*er*0.95,(Math.sin(a)-0.78)*er*0.9,r(.002)));}
     happy[i].surf(tube(polyCurve(ap),capR(er*0.08),40),40,8,H('#3a2228'));
@@ -495,14 +503,15 @@ function buildCat(o){
   (function(){var yL=(nz.p[1]-hc[1])-r(.02*Hf),A=r(.033*Hf),nu=10,nv=32;
     function lipY(x){return yL-r(.005*Hf)-r(.0045*Hf)*Math.abs(Math.sin(PI*Math.max(-1,Math.min(1,x/A))))}
     mouthTop=add(proj(0,yL-r(.006*Hf)),[0,0,r(.0035)]);
-    for(var lv=1;lv<=5;lv++){(function(B){var G=[],mm=new Mesh().m(0.38,8);
-      for(var j=0;j<=nv;j++){G.push([]);for(var ii=0;ii<=nu;ii++){var th=PI+PI*j/nv,u=ii/nu,x=u*A*Math.cos(th),y=lipY(x)-u*B*Math.pow(-Math.sin(th),0.7),hh=D.hit([hc[0]+x,hc[1]+y,hc[2]],[0,0,1],r(0.4));G[j].push(add(hh.p,scl(hh.n,r(.003))));}}
+    /* levels 0 (shut) .. 5 (wide open) share one topology, so the mouth can be blended continuously between them */
+    for(var lv=0;lv<=5;lv++){(function(B){var G=[],mm=new Mesh().m(0.38,8);
+      for(var j=0;j<=nv;j++){G.push([]);for(var ii=0;ii<=nu;ii++){var th=PI+PI*j/nv,u=ii/nu,x=u*A*Math.cos(th),y=lipY(x)-u*B*Math.pow(Math.max(0,-Math.sin(th)),0.7),hh=D.hit([hc[0]+x,hc[1]+y,hc[2]],[0,0,1],r(0.4));G[j].push(add(hh.p,scl(hh.n,r(.003))));}}
       mm.surf(function(u,v){var fj=v*nv,j=Math.min(nv-1,Math.floor(fj)),tj=fj-j,fi=u*nu,i2=Math.min(nu-1,Math.floor(fi)),ti=fi-i2;
         var a0=mix(G[j][i2],G[j][i2+1],ti),a1=mix(G[j+1][i2],G[j+1][i2+1],ti);return mix(a0,a1,tj).slice(0,3)},nu,nv,function(u,v){var th=PI+PI*v,x=u*Math.cos(th),y=u*Math.sin(th),q=(x*x)/0.42+(y+1.02)*(y+1.02)/0.4;if(u>0.9||y>-0.07)return o.lip;var tq=(x*x)/0.62+(y+1.05)*(y+1.05)/0.42;return tq<1?mix(H('#ffa5b8'),H('#f2879e'),sm(0.08,0,Math.abs(x))*0.4):mix(H('#9c3a52'),H('#c25670'),sm(-0.15,-0.7,y)*0.6)});
       /* the two upper canines show once the mouth is well open */
-      if(lv>=3)[-1,1].forEach(function(sg){var fx0=sg*A*0.46,top=D.hit([hc[0]+fx0,hc[1]+lipY(fx0)-r(.0012),hc[2]],[0,0,1],r(0.4));
-        var base_=add(top.p,scl(top.n,r(.0048))),len_=r(.0095*Hf)*Math.min(1,(lv-1)/4+0.25);mm.m(0.25,8);
-        mm.surf(tube(function(u){return add(base_,[0,-len_*u,r(.0008)*Math.sin(u*PI)])},function(u){return r(.0026*Hf)*(1-0.92*u)},10),10,8,H('#fffaf0'));});
+      [-1,1].forEach(function(sg){var fx0=sg*A*0.46,top=D.hit([hc[0]+fx0,hc[1]+lipY(fx0)-r(.0012),hc[2]],[0,0,1],r(0.4));
+        var fk=sm(1,3.6,lv),base_=add(top.p,scl(top.n,r(.001)+r(.0038)*fk)),len_=Math.max(1e-5,r(.0095*Hf)*fk);mm.m(0.25,8);
+        mm.surf(tube(function(u){return add(base_,[0,-len_*u,r(.0008)*Math.sin(u*PI)*fk])},function(u){return (r(.0026*Hf)*fk+1e-6)*(1-0.92*u)},10),10,8,H('#fffaf0'));});
       mouth.push(mm);})(r(.03*Hf)*lv/5);}})();
   /* whiskers: four long, tapering, slightly glowing white hairs per side from the whisker pads, plus two brow whiskers above each eye */
   var WK=[o.whisker[0],o.whisker[1],o.whisker[2],0.35];
@@ -533,7 +542,7 @@ function buildCat(o){
       Lh=1.0+(o.ruff===undefined?0.4:o.ruff)*sm(0.02,-0.08,hl[1])*sm(0.07,0.12,Math.abs(hl[0]));
       Lh*=1-0.2*sm(0.06,0.12,hl[2]); /* the face keeps its fur: only the very front of the muzzle is a little shorter */
       var earZ=sm(0.09,0.13,hl[1])*sm(0.05,0.08,Math.abs(hl[0]));Lh=lerp(Lh,nz_>0.15?0.1:0.3,earZ);
-      for(var e2=0;e2<2;e2++)Lh*=sm(1.04,1.5,len3(sub(p,eyeC[e2]))/er);
+      for(var e2=0;e2<2;e2++){var de=sub(p,eyeC[e2]);Lh*=sm(1.0,1.48,Math.hypot(de[0]*0.9,de[1]*1.14,de[2])/er);} /* bare ring follows the almond */
       Lh*=sm(0.9,1.8,len3(sub(p,nz.p))/r(.016*Hf));
       Lh*=sm(0.42,0.95,len3(sub(p,add(mTop,[0,-r(.02*Hf),0])))/r(.045*Hf));
       for(e2=0;e2<blushP.length;e2++){var bd=sub(p,blushP[e2]),bq=Math.sqrt(bd[0]*bd[0]*0.45+bd[1]*bd[1]+bd[2]*bd[2]*0.45)/r(.04*Hf),bk=(o.blushK===undefined?0.42:o.blushK)*sm(1.25,0.35,bq);
@@ -645,7 +654,7 @@ function poseCat(c,st,M0,t){
     headPos:xf(M(R0,Sh),J.HC),pawL:xf(R0,feet[0]),pawR:xf(R0,feet[1]),shoulderMid:xf(M(R0,St),mix(J.FS[0],J.FS[1],0.5).slice(0,3)),R0:R0,Scb:St};
 }
 /* draw: skinned body + rigid head/chest parts + blinking eyes */
-function uploadCat(E,c){return {wk:c.wk&&c.wk[0].P.length?[E.upload(c.wk[0]),E.upload(c.wk[1])]:null,noseM:c.noseM&&c.noseM.P.length?E.upload(c.noseM):null,skin:E.uploadSkin(c.mesh),head:E.upload(c.head),chest:E.upload(c.chest),eyes:[E.upload(c.eyes[0]),E.upload(c.eyes[1])],happy:[E.upload(c.happy[0]),E.upload(c.happy[1])],wink:[E.upload(c.wink[0]),E.upload(c.wink[1])],mouth:c.mouth.map(function(q){return E.upload(q)}),lip:E.upload(c.lip),pup:[E.upload(c.pup[0]),E.upload(c.pup[1])],tongue:E.upload(c.tongue),beans:[E.uploadSkin(c.beans[0]),E.uploadSkin(c.beans[1])]}}
+function uploadCat(E,c){return {wk:c.wk&&c.wk[0].P.length?[E.upload(c.wk[0]),E.upload(c.wk[1])]:null,noseM:c.noseM&&c.noseM.P.length?E.upload(c.noseM):null,skin:E.uploadSkin(c.mesh),head:E.upload(c.head),chest:E.upload(c.chest),eyes:[E.upload(c.eyes[0]),E.upload(c.eyes[1])],happy:[E.upload(c.happy[0]),E.upload(c.happy[1])],wink:[E.upload(c.wink[0]),E.upload(c.wink[1])],mouthV:new Float32Array(c.mouth[5].P),mouthM:E.upload({P:new Float32Array(c.mouth[5].P),N:c.mouth[5].N,C:c.mouth[5].C,UV:c.mouth[5].UV,I:c.mouth[5].I,R:c.mouth[5].R}),lip:E.upload(c.lip),pup:[E.upload(c.pup[0]),E.upload(c.pup[1])],tongue:E.upload(c.tongue),beans:[E.uploadSkin(c.beans[0]),E.uploadSkin(c.beans[1])]}}
 /* e: eye shapes, m: mouth open, p: pupil [w,h] (cats: slit when calm, big & round when excited), s: eye size, b: tongue out, o/f: ears out/forward */
 var EXPR={normal:{e:['open','open'],m:0,p:[1.12,1.18],s:1,b:0,o:0,f:0},smile:{e:['open','open'],m:0.45,p:[1.15,1.2],s:1.03,b:0,o:0.05,f:0.05},
   laugh:{e:['happy','happy'],m:1,p:[1,1],s:1,b:0,o:0.18,f:-0.12},wink:{e:['open','wink'],m:0.8,p:[1,1.1],s:1.02,b:0,o:0.12,f:0.1},
@@ -674,7 +683,12 @@ function drawCat(E,g,c,M0,st,t,tint){
     var ec=c.eyeC[i],es=st.eyeS,er=c.eyeR,cy=ec[1]-er*0.3,EM=M(r.head,T(ec[0],cy,ec[2]),Sc(es,b*es,1),T(-ec[0],-cy,-ec[2]));E.draw(g.eyes[i],EM);
     var gz=st.gaze||[0,0],pk=c.pupilK||1,pl=st.pupL===undefined?1:st.pupL;
     E.draw(g.pup[i],M(EM,c.eyeF[i],T(gz[0]*er*0.2,gz[1]*er*0.14,Math.hypot(gz[0],gz[1])*er*0.03),Sc(st.pup[0]*pk*pl,st.pup[1]*pk*(st.pupH||1),1),c.eyeFi[i]));}
-  if(st.mouth>0.1)E.draw(g.mouth[Math.max(0,Math.min(4,Math.round(st.mouth*5)-1))],r.head);else E.draw(g.lip,r.head);
+  /* the mouth opens continuously: blend the two nearest of the six shapes into one buffer */
+  var mo=Math.max(0,Math.min(1,st.mouth));
+  if(mo>0.035){var mf=mo*5,m0=Math.min(4,Math.floor(mf)),mt=mf-m0;
+    if(Math.abs(mo-(g.mouthAt===undefined?-9:g.mouthAt))>0.004){var A_=c.mouth[m0].P,B_=c.mouth[m0+1].P,out=g.mouthV;for(var q=0;q<out.length;q++)out[q]=A_[q]+(B_[q]-A_[q])*mt;E.setVerts(g.mouthM,out);g.mouthAt=mo;}
+    E.draw(g.mouthM,r.head);}
+  else E.draw(g.lip,r.head);
   return r;
 }
 /* world positions of a sparse set of skin vertices in pose r (same dual-quaternion skinning as the shader):

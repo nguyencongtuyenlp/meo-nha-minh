@@ -307,14 +307,14 @@ function catHead(){return cat.r?cat.r.headPos:[cat.x,cat.y+0.6*SC,cat.z]}
 
 /* mesh loading: worker + IndexedDB cache */
 var worker=null,wq={},wid=0;
-try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=28');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
+try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=29');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
   worker.onerror=function(){worker=null;for(var k in wq){var q=wq[k];delete wq[k];q.fallback()}}}}catch(e){worker=null}
 function buildCatAsync(coat,k,sh){return new Promise(function(res,rej){function local(){setTimeout(function(){try{res(window.buildPacked(coat,k,sh))}catch(e){rej(e)}},30)}
   if(worker){var id=++wid;wq[id]={res:res,rej:rej,fallback:local};worker.postMessage({id:id,coat:coat,k:k,shape:sh});}else local();})}
 var dbp=null;function db(){if(dbp)return dbp;dbp=new Promise(function(res){try{var r=indexedDB.open('meo-nha-mesh',1);r.onupgradeneeded=function(){r.result.createObjectStore('m')};r.onsuccess=function(){res(r.result)};r.onerror=function(){res(null)}}catch(e){res(null)}});return dbp}
 function idbGet(k){return db().then(function(d){return d?new Promise(function(res){try{var q=d.transaction('m').objectStore('m').get(k);q.onsuccess=function(){res(q.result||null)};q.onerror=function(){res(null)}}catch(e){res(null)}}):null})}
 function idbPut(k,v){db().then(function(d){if(d)try{d.transaction('m','readwrite').objectStore('m').put(v,k)}catch(e){}})}
-var MESHV='m28';
+var MESHV='m29';
 function curShape(){return SV&&SV.shape?SV.shape:null}
 function getCat(coat,k,sh){if(sh===undefined)sh=curShape();var key=MESHV+'-'+coat+'-'+k+'-'+window.shapeKey(sh);return idbGet(key).then(function(v){return v||buildCatAsync(coat,k,sh).then(function(c){idbPut(key,c);return c})})}
 function growG(){return clamp((Date.now()-SV.born)/(SV.grow*864e5),0,1)}
@@ -531,7 +531,11 @@ function approach(p,d){var dx=cat.x-p[0],dz=cat.z-p[2],l=Math.hypot(dx,dz)||1;re
 function randFloor(){for(var i=0;i<40;i++){var x=rnd(-RXH+1,RXH-1),z=rnd(-RZH+1,RZH-1);if(sdWorld(x,z,0)>0.45*SC+0.3)return [x,z]}return [0,1]}
 function playerSpot(){var e=cam.eye;if(cam.follow){var dx=e[0]-cat.x,dz=e[2]-cat.z,q=Math.hypot(dx,dz)||1;return [clamp(cat.x+dx/q*1.6,-RXH+1.2,RXH-1.2),clamp(cat.z+dz/q*1.6,-RZH+1.2,RZH-1.2)]}var l=Math.hypot(e[0],e[2])||1;return [clamp(e[0]/l*3.6,-RXH+1.6,RXH-1.6),clamp(e[2]/l*3.6,-RZH+1.6,RZH-1.6)]}
 function moodEx(){var s=SV.stats;if(s.vui<20||s.an<15)return 'sad';return s.vui>70&&s.tt>40?'smile':'normal'}
-function mewNow(kind){ac();mew(lerp(980,560,G),kind);cat.meowT=now();}
+function mewNow(kind){ac();mew(lerp(980,560,G),kind);cat.meowT=now();cat.meowKind=kind;}
+/* how open the mouth is, a seconds into a meow: opens fast, holds with a small tremble, closes slowly.
+   returns null once the meow is over */
+function meowShape(a,kind){var dur=kind==='long'?1.15:kind==='trill'?0.45:0.72,peak=kind==='long'?0.95:kind==='trill'?0.42:0.82;
+  if(!(a>=0&&a<dur))return null;return peak*sm(0,0.11,a)*(1-sm(dur-0.28,dur,a))*(1-0.07*(0.5+0.5*Math.sin(a*34)));}
 function sayMeow(t,every){if(t-cat.meowT>every){mewNow(Math.random()<0.3?'long':'');cat.exHold=t+0.55}}
 function pawTo(side,world,w){var l=toLocal(world);if(side<0)cat.ovL=l;else cat.ovR=l;cat.ovW=w===undefined?1:w;}
 function shoulderW(){return cat.r?cat.r.shoulderMid:[cat.x,cat.y+0.35*SC,cat.z]}
@@ -702,8 +706,13 @@ function updateCat(dt,t){
   if(t>(cat.earNext||0)){cat.earNext=t+rnd(1.2,4.5);var ei=Math.random()<0.5?0:1;if(Math.random()<0.45&&!cat.sleeping)st.earTw[ei]=1;else cat.earT[ei]=Math.random()<0.6?rnd(0.25,0.75):rnd(-0.25,0.1);if(Math.random()<0.3)cat.earT[1-ei]=cat.earT[ei]*rnd(0.3,0.9);}
   var ek=1-Math.pow(0.004,dt);for(var e3=0;e3<2;e3++){cat.earT[e3]*=Math.pow(0.82,dt);st.earSw[e3]+=(cat.earT[e3]-st.earSw[e3])*ek;st.earTw[e3]*=Math.pow(0.0004,dt);}
   if(ex==='annoyed')st.earO+=(0.55-st.earO)*ek;else if(cat.sleeping||cat.pose==='curl'||cat.pose==='side')st.earO+=(0.28-st.earO)*ek;
-  if(ex==='chew')st.mouth=0.12+0.18*Math.abs(Math.sin(t*9));else if(ex==='lap'){st.blep=Math.sin(t*25)>0?1:0.15;st.mouth=0.04}else if(ex==='lick')st.blep=cat.lickB!=null?cat.lickB:0.6+0.4*Math.sin(t*12);
-  else if(ex==='chatter')st.mouth=Math.sin(t*30)>0?0.45:0.08;else if(ex==='annoyed'){st.pup[0]+=(0.35-st.pup[0])*0.2}else if(ex==='sad'){st.eyeS+=(0.97-st.eyeS)*0.1}
+  if(ex==='chew')st.mouth=0.12+0.18*Math.abs(Math.sin(t*9));else if(ex==='lap'){st.blep=0.15+0.85*sm(-0.6,0.6,Math.sin(t*25));st.mouth=0.04}else if(ex==='lick')st.blep=cat.lickB!=null?cat.lickB:0.6+0.4*Math.sin(t*12);
+  else if(ex==='chatter')st.mouth=0.08+0.37*sm(-0.7,0.7,Math.sin(t*30));
+  /* every sound moves the mouth in time with it (and the expression's own opening takes over again afterwards) */
+  var ms_=cat.sleeping?null:meowShape(t-(cat.meowT||-9),cat.meowKind);
+  if(ms_!==null){st.mouth=cat.mouthWas===undefined?st.mouth:cat.mouthWas;st.mouth+=(ms_-st.mouth)*(1-Math.pow(ms_>st.mouth?1e-8:2e-3,dt));st.blep=0;}
+  cat.mouthWas=ms_!==null?st.mouth:undefined;
+  if(ex==='annoyed'){st.pup[0]+=(0.35-st.pup[0])*0.2}else if(ex==='sad'){st.eyeS+=(0.97-st.eyeS)*0.1}
   /* cats blink seldom and irregularly (not every 4 s like a clock), sometimes twice in a row */
   if(!cat.blinkAt||t>cat.blinkAt+0.5){cat.blinkAt=t+rnd(2.5,9);if(Math.random()<0.2)cat.blink2=cat.blinkAt+rnd(0.3,0.45);else cat.blink2=-9;}
   function blinkK(t0){var q=(t-t0)/0.17;return q>=0&&q<1?1-0.92*Math.sin(q*PI):1}
@@ -866,8 +875,8 @@ function drawDynamic(D,shadow){if(!SV)return;var dr=shadow?function(g,m){E.drawD
     if(!shadow){dr(Gd.string,C.alignY([lp[0],lp[1]+0.06,lp[2]],sd,sl));var rd=nrm(sub(cam.eye,tp2));dr(Gd.rod,C.alignY(tp2,[rd[0]*0.6,1,rd[2]*0.6],2.6));}}}
 /* ======================= bé mèo thứ hai (dựng trong Blender, xem blendercat.js) ======================= */
 var cat2=null;
-if(window.BlenderCat)window.BlenderCat.load(E,'meo-blender.bin?v=1').then(function(k){cat2=k}).catch(function(err){console.error('[meo-blender] '+err.message)});
-function cat2World(){return {sdWorld:sdWorld,sdGrad:sdGrad,navPath:navPath,randFloor:randFloor,main:catReady?{x:cat.x,y:cat.y+cat.hop,z:cat.z,yaw:cat.yaw,S:SC}:null}}
+if(window.BlenderCat)window.BlenderCat.load(E,'meo-blender.bin?v=2').then(function(k){cat2=k}).catch(function(err){console.error('[meo-blender] '+err.message)});
+function cat2World(){return {light:clamp((ENV?ENV.day*0.75+ENV.lampC[0]*0.06:0.6),0,1),sdWorld:sdWorld,sdGrad:sdGrad,navPath:navPath,randFloor:randFloor,main:catReady?{x:cat.x,y:cat.y+cat.hop,z:cat.z,yaw:cat.yaw,S:SC}:null}}
 function cat2On(){return cat2&&catReady&&!STUDIO.on}
 function hitCat2(sx,sy){if(!cat2On()||!cat2.r)return false;var r=ray(sx,sy),s=cat2.spheres();
   return raySphere(r,cat2.r.headPos,0.24)>0||s.some(function(b){return raySphere(r,[b[0],0.35,b[1]],b[2]+0.06)>0});}

@@ -77,6 +77,8 @@ def fur_len(p):
         if p.y < c.y + .08 and V((p.x - c.x, p.z - c.z)).length < EYE_R * 1.06:
             L = 0
     L *= smooth01(.07, .2, (p - NOSE).length)
+    if p.y < -1.75:                                  # quanh miệng lông gần trụi để thấy miệng há
+        L *= smooth01(.1, .22, math.hypot(p.x * .85, (p.z - 2.795) * 1.25))
     return L
 
 
@@ -201,7 +203,7 @@ def hash1(i):
     return (math.sin(i * 127.1 + 311.7) * 43758.5453) % 1
 
 
-eyes, eye_info = [], []
+eyes, eye_info, pupils = [], [], []
 for s, sn in ((1, 'L'), (-1, 'R')):
     c = EYES[s]
     gaze = V((s * .13, -1, 0)).normalized()
@@ -217,11 +219,9 @@ for s, sn in ((1, 'L'), (-1, 'R')):
             ph = i / NS * 2 * math.pi
             d = gaze * math.cos(ang) + (right * math.cos(ph) + up * math.sin(ph)) * math.sin(ang)
             px, pz = d.dot(right), d.dot(up)
-            if ang <= .685:                                                          # đồng tử tròn to
-                q = hexc('0b0705')
-            elif ang > .99:
+            if ang > .99:
                 q = mixc(hexc('241109'), hexc('5a3320'), smooth01(1.0, 1.4, ang))
-            else:
+            else:                                    # mống mắt tô kín tới giữa: đồng tử là lưới riêng, co giãn trong game
                 t = smooth01(.7, .96, ang)
                 q = mixc(hexc('d9a23c'), hexc('8fb04c'), smooth01(.15, .6, t))
                 fib = hash1(i) * .6 + hash1(i // 3 + 91) * .4
@@ -242,7 +242,28 @@ for s, sn in ((1, 'L'), (-1, 'R')):
     eye = rigid()
     rigid_add(eye, pts, nrms, cols, .1, 6, tris)
     eyes.append(eye)
-    eye_info.append({'c': list(gp(c))})
+    # đồng tử: chỏm cầu nằm sát mặt mống mắt. Game dời đỉnh trên mặt cầu để khép thành khe hoặc mở tròn
+    p_angs = [0, .12, .24, .35, .45, .53, .60, .645, .672, .69]
+    PS = 48
+    pup = rigid()
+    p_pts, p_n, p_c, p_t = [], [], [], []
+    for ang in p_angs:
+        for i in range(PS):
+            ph = i / PS * 2 * math.pi
+            d = gaze * math.cos(ang) + (right * math.cos(ph) + up * math.sin(ph)) * math.sin(ang)
+            q = mixc(hexc('070403'), hexc('1c0f08'), smooth01(.64, .69, ang))
+            sh = 1 - .5 * smooth01(.1, .78, d.dot(up))
+            p_pts.append(c + d * EYE_R * 1.006)
+            p_n.append(d)
+            p_c.append((q[0] * sh, q[1] * sh, q[2] * sh))
+    for j in range(len(p_angs) - 1):
+        for i in range(PS):
+            a, b = j * PS + i, j * PS + (i + 1) % PS
+            p_t += [(a, a + PS, b + PS), (a, b + PS, b)]
+    rigid_add(pup, p_pts, p_n, p_c, .1, 6, p_t)
+    pupils.append(pup)
+    eye_info.append({'c': list(gp(c)), 'fwd': list(A @ gaze), 'rt': list(A @ right), 'up': list(A @ up),
+                     'r': EYE_R * 1.006 * SC, 'angs': p_angs, 'seg': PS})
     # đốm sáng: đứng yên khi tròng mắt liếc, nằm chung nhóm mặt
     for off, rr in (((.30, .40), .17), ((-.30, -.30), .065)):
         d0 = (gaze + right * off[0] * .75 + up * off[1] * .75).normalized()
@@ -276,6 +297,63 @@ for s, sn in ((1, 'L'), (-1, 'R')):
             na, nb = (a + SIDE) % (SEG * SIDE), (b + SIDE) % (SEG * SIDE)
             ring_t += [(a, na, nb), (a, nb, b)]
     rigid_add(face, ring_pts, ring_n, ring_c, .75, 0, ring_t)
+
+# ───── miệng há: nửa hình bầu dục dưới đường miệng, chiếu lên mặt; hai khuôn (ngậm/há) cùng số đỉnh ─────
+def face_y(x, z):
+    hit, loc, _, _ = body.ray_cast(V((x, -5, z)), V((0, 1, 0)))
+    assert hit, (x, z)
+    return loc.y
+
+
+def mouth_shape(k):
+    """k: 0 ngậm .. 1 há to. Trả (đỉnh, màu, tam giác)."""
+    NU, NV, AW = 8, 28, .115
+    pts, cols, tris = [], [], []
+
+    def lip_z(x):
+        return 2.852 - .022 * abs(math.sin(math.pi * max(-1, min(1, x / AW))))
+
+    for j in range(NV + 1):
+        th = math.pi + math.pi * j / NV
+        for i in range(NU + 1):
+            u = i / NU
+            x = u * AW * math.cos(th)
+            z = lip_z(x) - u * .105 * k * max(0.0, -math.sin(th)) ** .7
+            pts.append(V((x, face_y(x, z) - .03, z)))
+            a, b = u * math.cos(th), u * math.sin(th)
+            if u > .9:
+                q = hexc('3a1a14')                                   # viền môi
+            elif (a * a) / .5 + (b + 1.0) ** 2 / .42 < 1:
+                q = mixc(hexc('ff9db0'), hexc('e7748c'), 1 - smooth01(.0, .14, abs(a)))   # lưỡi
+            else:
+                q = mixc(hexc('5a1824'), hexc('93384a'), smooth01(.2, .75, -b))
+            cols.append(q)
+    for j in range(NV):
+        for i in range(NU):
+            a = j * (NU + 1) + i
+            tris += [(a, a + 1, a + NU + 2), (a, a + NU + 2, a + NU + 1)]
+    for sg in (-1, 1):                                               # hai răng nanh trên
+        fx = sg * AW * .47
+        top = V((fx, face_y(fx, lip_z(fx) - .004) - .037, lip_z(fx) - .004))
+        base, n = len(pts), 8
+        fk = smooth01(.2, .72, k)
+        for i in range(n):
+            ph = i / n * 2 * math.pi
+            pts.append(top + V((math.cos(ph) * .0105 * fk, math.sin(ph) * .007 * fk, 0)))
+            cols.append(hexc('fff8ee'))
+        pts.append(top + V((0, -.004 * fk, -.042 * fk)))
+        cols.append(hexc('fffaf2'))
+        tris += [(base + i, base + (i + 1) % n, base + n) for i in range(n)]
+    return pts, cols, tris
+
+
+body = D.objects['Da_Meo']
+m_open, m_cols, m_tris = mouth_shape(1.0)
+m_shut, _, _ = mouth_shape(0.0)
+mouth_m = rigid()
+rigid_add(mouth_m, m_open, [V((0, -1, 0))] * len(m_open), m_cols, .4, 8, m_tris)
+mouth_shut = [k for p in m_shut for k in gp(p)]
+mouth_half = [k for p in mouth_shape(0.5)[0] for k in gp(p)]
 
 lids = []
 for s, sn in ((1, 'L'), (-1, 'R')):
@@ -477,6 +555,8 @@ meta = {'v': 1, 'posK': PK, 'bones': BONES,
         'fur': {'n': 18, 'len': round(FUR_MAX * SC * .8, 4), 'den': 1100},
         'skin': pack_mesh(skin), 'face': pack_mesh(face), 'eyes': [pack_mesh(e) for e in eyes],
         'lids': [pack_mesh(e) for e in lids], 'eyeInfo': eye_info, 'lidClose': LID_CLOSE,
+        'pupils': [pack_mesh(e) for e in pupils], 'mouth': pack_mesh(mouth_m),
+        'mouthShut': put('f', mouth_shut), 'mouthHalf': put('f', mouth_half),
         'headBone': BI['head'], 'headPos': list(gp((0, -1.5, 3.2))), 'clips': []}
 for c in clips:
     vals = []

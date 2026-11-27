@@ -222,6 +222,8 @@
         uploads.push(h);
         return h;
       },
+      /* đổi toạ độ đỉnh của lưới đã nạp (cùng số đỉnh): miệng, đồng tử biến hình liên tục */
+      setVerts: function (g, P) { var a = g.geo.attributes.position; a.array.set(P); a.needsUpdate = true; },
       uploadSkin: function (m) {
         var nv = m.P.length / 3, g = new THREE.BufferGeometry();
         g.setAttribute('position', attr(m.P, 3)); g.setAttribute('normal', attr(m.N, 3)); g.setAttribute('aC', attr(m.C, 4));

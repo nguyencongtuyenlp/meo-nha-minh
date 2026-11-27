@@ -243,9 +243,9 @@ body.studio #stats,body.studio #tb,body.studio #tr,body.studio #chip,body.studio
 <div id="rotate"><svg class="i"><use href="#i-phone"/></svg><div class="baloo" style="font-size:22px">Xoay ngang điện thoại nha</div><div style="color:#8a7280">Căn phòng của bé rộng lắm, màn ngang mới vừa đó 🐾</div></div>
 <div id="loading"><div class="paw">🐾</div><div id="loadMsg">Đang dọn phòng cho bé…</div></div>
 
-<script src="cat3d.js?v=28"></script>
-<script src="coats.js?v=28"></script>
-<script src="blendercat.js?v=2"></script>
+<script src="cat3d.js?v=29"></script>
+<script src="coats.js?v=29"></script>
+<script src="blendercat.js?v=3"></script>
 <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.min.js","three/addons/":"./vendor/three/jsm/"}}</script>
 <script type="module">
 /* Đồ hoạ three.js (WebGL2, ánh sáng vật lý, bóng mềm, AO). Máy không chạy được thì game tự dùng engine cũ. */
@@ -255,11 +255,11 @@ try{
     import('three/addons/postprocessing/GTAOPass.js'),import('three/addons/postprocessing/UnrealBloomPass.js'),
     import('three/addons/postprocessing/OutputPass.js'),import('three/addons/environments/RoomEnvironment.js')]);
   window.THREE=THREE;window.THREE_ADDONS={EffectComposer,RenderPass,GTAOPass,UnrealBloomPass,OutputPass,RoomEnvironment};
-  await new Promise((ok,no)=>{const s=document.createElement('script');s.src='engine3.js?v=3';s.onload=ok;s.onerror=no;document.body.appendChild(s);});
+  await new Promise((ok,no)=>{const s=document.createElement('script');s.src='engine3.js?v=4';s.onload=ok;s.onerror=no;document.body.appendChild(s);});
 }catch(e){console.error('[three] '+e);}
-const g=document.createElement('script');g.src='game.js?v=29';document.body.appendChild(g);
+const g=document.createElement('script');g.src='game.js?v=30';document.body.appendChild(g);
 </script>
-<script nomodule src="game.js?v=29"></script>
+<script nomodule src="game.js?v=30"></script>
 <script>
 if('serviceWorker' in navigator&&location.protocol!=='file:'){addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
 </script>

@@ -45,7 +45,8 @@
       return o;
     }
     var out = { meta: meta, skin: mesh(meta.skin), face: mesh(meta.face, true), eyes: meta.eyes.map(function (m) { return mesh(m, true); }),
-      lids: meta.lids.map(function (m) { return mesh(m, true); }), clips: {} };
+      lids: meta.lids.map(function (m) { return mesh(m, true); }), pupils: meta.pupils.map(function (m) { return mesh(m, true); }),
+      mouth: mesh(meta.mouth, true), mouthShut: arr(meta.mouthShut), mouthHalf: arr(meta.mouthHalf), clips: {} };
     meta.clips.forEach(function (c) {
       var raw = arr(c.data), d = new Float32Array(raw.length);
       for (var i = 0; i < raw.length; i++) d[i] = raw[i] * (i % 7 < 4 ? 1 : meta.posK) / 32767;
@@ -110,12 +111,42 @@
 
   function create(E, data) {
     var meta = data.meta, nb = meta.bones.length;
-    var gpu = { skin: E.uploadSkin(data.skin), face: E.upload(data.face), eyes: data.eyes.map(E.upload), lids: data.lids.map(E.upload) };
+    /* lưới đổi dáng được (đồng tử, miệng) nạp bằng bản sao toạ độ để không ghi đè dữ liệu gốc */
+    function copy(m) { return { P: new Float32Array(m.P), N: m.N, C: m.C, UV: m.UV, I: m.I, R: m.R }; }
+    var gpu = { skin: E.uploadSkin(data.skin), face: E.upload(data.face), eyes: data.eyes.map(E.upload), lids: data.lids.map(E.upload),
+      pupils: data.pupils.map(function (m) { return E.upload(copy(m)); }), mouth: E.upload(copy(data.mouth)) };
+    var mouthV = new Float32Array(data.mouth.P), mouthAt = -9, pupilAt = -9;
+    var pupilV = data.pupils.map(function (m) { return new Float32Array(m.P); });
+    /* đồng tử: dời đỉnh trên mặt cầu. wk = bề ngang (nhỏ = khe dọc khi trời sáng, 1 = tròn to khi tối/hào hứng) */
+    function shapePupils(wk) {
+      if (Math.abs(wk - pupilAt) < 0.012) return;
+      pupilAt = wk;
+      var hk = 1 + (1 - Math.min(1, wk)) * 0.22;
+      meta.eyeInfo.forEach(function (e, ei) {
+        var v = pupilV[ei], k = 0;
+        for (var j = 0; j < e.angs.length; j++) {
+          var s = Math.sin(e.angs[j]);
+          for (var i = 0; i < e.seg; i++) {
+            var ph = i / e.seg * 6.283185307, x = Math.cos(ph) * s * wk, y = Math.sin(ph) * s * hk, z = Math.sqrt(Math.max(0, 1 - x * x - y * y));
+            for (var a = 0; a < 3; a++) v[k++] = e.c[a] + e.r * (e.rt[a] * x + e.up[a] * y + e.fwd[a] * z);
+          }
+        }
+        E.setVerts(gpu.pupils[ei], v);
+      });
+    }
+    /* miệng: nội suy ngậm -> há một nửa -> há to */
+    function shapeMouth(o) {
+      if (Math.abs(o - mouthAt) < 0.008) return;
+      mouthAt = o;
+      var A = o < 0.5 ? data.mouthShut : data.mouthHalf, B = o < 0.5 ? data.mouthHalf : data.mouth.P, t = o < 0.5 ? o * 2 : o * 2 - 1;
+      for (var q = 0; q < mouthV.length; q++) mouthV[q] = A[q] + (B[q] - A[q]) * t;
+      E.setVerts(gpu.mouth, mouthV);
+    }
     var cur = new Float32Array(nb * 7), prevPose = new Float32Array(nb * 7), mixed = new Float32Array(nb * 7);
     var dqArr = new Float32Array(nb * 8), skinC = { mesh: data.skin };
     var K = {
       x: 0, z: 0, yaw: 0, state: 'stand', u: 0, k: 0, wait: 2, path: null, target: null, fade: 0, placed: false,
-      gaze: [0, 0], gazeT: [0, 0], sacT: 0, lid: 0, slowT: -9, stuck: 0, r: null, data: data
+      gaze: [0, 0], gazeT: [0, 0], sacT: 0, lid: 0, slowT: -9, stuck: 0, r: null, data: data, pup: 0.6, excite: 0, meowAt: -9, mouth: 0
     };
 
     function say(state) {                     /* đổi trạng thái, hoà tư thế cũ vào tư thế mới */
@@ -274,6 +305,13 @@
       if (sl >= 0 && sl < 1.4) shut = Math.max(shut, Math.sin(Math.PI * sl / 1.4));
       if (K.state === 'sit' && Math.random() < dt * 0.12 && sl > 3) K.slowT = t;
       K.lid = Math.max(0, Math.min(1, shut));
+      /* đồng tử theo ánh sáng; vừa được chạm thì mở to */
+      K.excite = Math.max(0, K.excite - dt);
+      var light = w.light === undefined ? 0.6 : w.light, pupT = K.excite > 0 ? 1.04 : 1 - 0.7 * sm(0.3, 0.95, light);
+      K.pup += (pupT - K.pup) * (1 - Math.pow(0.03, dt));
+      /* tiếng kêu: miệng mở nhanh, giữ, khép chậm */
+      var ma = t - K.meowAt;
+      K.mouth = ma >= 0 && ma < 0.6 ? 0.9 * sm(0, 0.1, ma) * (1 - sm(0.34, 0.6, ma)) : 0;
     };
 
     function parts() {
@@ -290,7 +328,9 @@
       E.drawSkin(gpu.skin, K.r.dq, K.r.R0, [1, 1, 1], { n: Math.max(3, Math.round(f.n * C.getFurQ())), len: f.len, den: f.den });
       E.breath = 0;
       E.draw(gpu.face, K.r.head);
-      for (var i = 0; i < 2; i++) { E.draw(gpu.eyes[i], p.eyes[i]); E.draw(gpu.lids[i], p.lids[i]); }
+      shapePupils(K.pup);
+      for (var i = 0; i < 2; i++) { E.draw(gpu.eyes[i], p.eyes[i]); E.draw(gpu.pupils[i], p.eyes[i]); E.draw(gpu.lids[i], p.lids[i]); }
+      if (K.mouth > 0.03) { shapeMouth(K.mouth); E.draw(gpu.mouth, K.r.head); }
     };
     K.drawShadow = function () {
       if (!K.r) return;
@@ -308,7 +348,7 @@
       return g;
     };
     /* chạm vào bé: quay mặt lại, chớp chậm */
-    K.touched = function (t) { K.slowT = t + 0.25; K.gazeT = [0, 0]; K.sacT = 2; if (K.state === 'walk') stop(2.5); else K.wait = Math.max(K.wait, 2.5); };
+    K.touched = function (t) { K.meowAt = t; K.excite = 2.5; K.slowT = t + 0.9; K.gazeT = [0, 0]; K.sacT = 2; if (K.state === 'walk') stop(2.5); else K.wait = Math.max(K.wait, 2.5); };
     K.force = function (what, w) {
       if (what === 'walk') walkTo(w, w.to || farSpot(w, 1.6, 0.6));
       else if (what === 'sit') { K.k = 0; say('sitdown'); }
