@@ -5,7 +5,8 @@
   var C = G.CAT3D, T = C.T, RX = C.RX, RY = C.RY, M = C.M, xf = C.xf, sm = C.sm;
   /* gốc xương lúc nghỉ, hệ game (Blender (x,y,z) -> 0.2*(x, z, -(y-0.12))), lấy từ tools/blender/meo.py */
   function gp(x, y, z) { return [x * 0.2, z * 0.2, -(y - 0.12) * 0.2]; }
-  var EAR_ROOT = { 'ear.L': gp(0.43, -1.42, 3.62), 'ear.R': gp(-0.43, -1.42, 3.62) };
+  var NECK_TOP = gp(0, -1.2, 2.8);
+  var EAR_ROOT ={ 'ear.L': gp(0.43, -1.42, 3.62), 'ear.R': gp(-0.43, -1.42, 3.62) };
   var TAIL_HEADS = (function () {
     var tp = [[0, 1.65, 2.14], [0, 2.18, 2.34], [0, 2.58, 2.62], [0, 2.86, 3.02], [0, 2.94, 3.48], [0, 2.82, 3.90], [0, 2.56, 4.18]], out = [];
     for (var i = 0; i < tp.length - 1; i++) { out.push(tp[i]); out.push([0, (tp[i][1] + tp[i + 1][1]) / 2, (tp[i][2] + tp[i + 1][2]) / 2]); }
@@ -146,7 +147,8 @@
     var dqArr = new Float32Array(nb * 8), skinC = { mesh: data.skin };
     var K = {
       x: 0, z: 0, yaw: 0, state: 'stand', u: 0, k: 0, wait: 2, path: null, target: null, fade: 0, placed: false,
-      gaze: [0, 0], gazeT: [0, 0], sacT: 0, lid: 0, slowT: -9, stuck: 0, r: null, data: data, pup: 0.6, excite: 0, meowAt: -9, mouth: 0
+      gaze: [0, 0], gazeT: [0, 0], sacT: 0, lid: 0, slowT: -9, stuck: 0, r: null, data: data, pup: 0.6, excite: 0, meowAt: -9, mouth: 0,
+      y: 0, gait: 'walk', petting: false, brushing: false, petT: 0, petEnd: -9, cross: 0, annoyedNow: false, nuzzle: 0, toyT: 0, repath: 0, jump: null, hits: 0, purr: 0
     };
 
     function say(state) {                     /* đổi trạng thái, hoà tư thế cũ vào tư thế mới */
@@ -186,9 +188,92 @@
           if (a > px) px = a; if (a < nx) nx = a; if (b > pz) pz = b; if (b < nz) nz = b;
         }
       }
-      K.x += px + nx; K.z += pz + nz;
-      return Math.hypot(px + nx, pz + nz);
+      var mx = px + nx, mz = pz + nz;
+      K.x += mx; K.z += mz;
+      /* đẩy chỉ là tịnh tiến: dời luôn ma trận, khỏi dựng lại dáng (giữ nguyên cử động đuôi, tai, đầu) */
+      K.r.R0[12] += mx; K.r.R0[14] += mz; K.r.head[12] += mx; K.r.head[14] += mz; K.r.headPos[0] += mx; K.r.headPos[2] += mz;
+      return Math.hypot(mx, mz);
     }
+
+    var HUNT = { chase: 1, stalk: 1, watch: 1, pounce: 1, swat: 1 };
+    function angTo(x, z) { var want = Math.atan2(x - K.x, z - K.z); return Math.atan2(Math.sin(want - K.yaw), Math.cos(want - K.yaw)); }
+    function turnTo(dt, x, z, rate) { var d = angTo(x, z), s = Math.max(-rate * dt, Math.min(rate * dt, d)); K.yaw += s; return Math.abs(d); }
+    /* ── được vuốt ve / chải lông ── */
+    function petted(dt, t, w, near) {
+      K.petT += dt; K.y = 0;
+      if (HUNT[K.state]) stop(2);
+      if (K.state === 'walk') {
+        if (w.sdWorld(K.x, K.z, 0) > 0.7 && (!near || near.gap > 0.5)) { K.k = 0; say('sitdown'); } else stop(5);
+      } else if (K.state === 'stand') {
+        K.u += dt / data.clips.stand.sec;
+        if (K.petT > 1.2 && w.sdWorld(K.x, K.z, 0) > 0.7 && (!near || near.gap > 0.5)) { K.k = 0; say('sitdown'); }
+      } else if (K.state === 'sitdown' || K.state === 'standup') {
+        K.state = 'sitdown'; K.k += dt / data.clips.sitdown.sec;
+        if (K.k >= 1) { K.u = 0; K.wait = 6; say('sit'); }
+      } else if (K.state === 'sit') K.u += dt / data.clips.sit.sec;
+      /* vuốt quá lâu thì bé bực, quất đuôi rồi bỏ đi (chải lông được lâu hơn) */
+      var limit = K.brushing ? 18 : 12;
+      K.annoyedNow = K.petT > limit;
+      if (K.petT > limit + 2.2) {
+        K.petting = false; K.annoyedNow = false; K.petT = 0; K.cross = 7;
+        if (w.onAnnoyed) w.onAnnoyed();
+        walkTo(w, farSpot(w, 2.4, 0.6));
+      }
+    }
+
+    /* ── chơi đồ chơi: chạy tới → rình → vồ → tát ── */
+    function play(dt, t, w) {
+      var toy = w.toy, tx = toy.p[0], tz = toy.p[2], d = Math.hypot(tx - K.x, tz - K.z);
+      var mainNear = w.main && w.main.y < 0.5 && Math.hypot(tx - w.main.x, tz - w.main.z) < 0.85;
+      K.excite = 0.6;
+      if (K.state === 'sit' || K.state === 'sitdown') { K.k = K.state === 'sit' ? 1 : K.k; say('standup'); return; }
+      if (K.state === 'standup') { K.k -= dt / data.clips.sitdown.sec * 2.5; if (K.k <= 0) { K.u = 0; say('chase'); } return; }
+      if (!HUNT[K.state]) { K.u = 0; K.repath = 0; K.path = null; say('chase'); }
+
+      if (K.state === 'pounce') {
+        var j = K.jump, cl = data.clips.pounce; K.k = Math.min(1, K.k + dt / cl.sec);
+        var e = sm(0.08, 0.92, K.k);
+        K.x = j.x0 + (j.x1 - j.x0) * e; K.z = j.z0 + (j.z1 - j.z0) * e; K.y = j.h * Math.sin(Math.PI * e);
+        if (K.k >= 1) { K.y = 0; K.k = 0; say('swat'); }
+        return;
+      }
+      K.y = 0;
+      if (K.state === 'swat') {
+        var before = K.k; K.k = Math.min(1, K.k + dt / data.clips.swat.sec); turnTo(dt, tx, tz, 3);
+        if (before < 0.55 && K.k >= 0.55 && d < 0.78 && w.onSwat) { K.hits++; w.onSwat(toy.kind, Math.sin(K.yaw), Math.cos(K.yaw)); }
+        if (K.k >= 1) { K.toyT = 0; K.repath = 0; K.path = null; say('chase'); }
+        return;
+      }
+      var off = Math.abs(angTo(tx, tz));
+      if (K.state === 'stalk' || K.state === 'watch') {
+        K.u += dt / data.clips.crouch.sec * (K.state === 'watch' ? 0.45 : 1); K.toyT += dt; turnTo(dt, tx, tz, 3.5);
+        if (d > 1.35) { K.path = null; K.repath = 0; say('chase'); return; }
+        if (K.state === 'watch') { if (!mainNear && !toy.caught && K.toyT > 0.5) { K.toyT = 0; say('stalk'); } return; }
+        if (mainNear || toy.caught) { K.toyT = 0; say('watch'); return; }   /* Mochi đang giành món đồ: nằm rình chờ */
+        if (K.toyT > 0.75 && off < 0.35) {
+          var fx = Math.sin(K.yaw), fz = Math.cos(K.yaw), x1 = tx - fx * 0.46, z1 = tz - fz * 0.46;
+          var hop = Math.hypot(x1 - K.x, z1 - K.z);
+          if (hop < 1.0 && hop > 0.08 && w.sdWorld(x1, z1, 0) > 0.42) { K.jump = { x0: K.x, z0: K.z, x1: x1, z1: z1, h: 0.12 + hop * 0.18 }; K.k = 0; say('pounce'); }
+          else { K.k = 0; say('swat'); }
+        }
+        return;
+      }
+      /* chase: ở xa thì phi, gần thì đi rón rén */
+      if (d < 0.9) { K.toyT = 0; say('stalk'); return; }
+      var gait = d > 1.6 || toy.kind === 'laser' && d > 1.1 ? 'run' : 'walk';
+      if (gait !== K.gait) { K.gait = gait; say('chase'); }
+      K.repath -= dt;
+      if (K.repath <= 0 || !K.path || !K.path.length) { K.repath = 0.35; K.path = w.navPath([K.x, K.z], [tx, tz], NAV_R) || []; if (!K.path.length) K.path = [[tx, tz]]; }
+      while (K.path.length > 1 && Math.hypot(K.path[0][0] - K.x, K.path[0][1] - K.z) < 0.25) K.path.shift();
+      var wp = K.path[0], wd = Math.hypot(wp[0] - K.x, wp[1] - K.z);
+      if (wd < 0.12) { K.repath = 0; if (K.path.length <= 1) { K.toyT = 0; say(d < 1.35 ? 'watch' : 'chase'); } return; }
+      var err = turnTo(dt, wp[0], wp[1], gait === 'run' ? 6 : 4);
+      var clip = data.clips[gait], facing = Math.max(0, Math.cos(err));
+      var speed = (gait === 'run' ? clip.dist / clip.sec * 1.15 : clip.dist / clip.sec * 1.35) * facing * facing, step = Math.min(wd, speed * dt);
+      K.x += Math.sin(K.yaw) * step; K.z += Math.cos(K.yaw) * step;
+      K.u += (step + Math.min(err, 6 * dt) * 0.2) / clip.dist;
+    }
+    function turnToNeeded(x, z) { return Math.abs(angTo(x, z)); }
 
     function think(dt, t, w) {
       var me = spheres(K.x, K.z, K.yaw, BODY, 1), near = null;
@@ -198,6 +283,10 @@
         K.x += near.dx * push; K.z += near.dz * push;
       }
       var crowded = near && near.gap < 0.28;
+
+      if (K.petting) { petted(dt, t, w, near); return; }
+      if (w.toy && K.cross <= 0) { play(dt, t, w); return; }
+      if (HUNT[K.state]) { stop(1.2 + Math.random()); return; }   /* đồ chơi biến mất: đứng ngơ ngác tìm */
 
       if (K.state === 'walk') {
         var wp = K.path[0], dx = wp[0] - K.x, dz = wp[1] - K.z, dist = Math.hypot(dx, dz);
@@ -244,14 +333,23 @@
     var L = { ph: 0, lag: 0, lagV: 0, yawP: null, tipA: 0, tipPh: 0, ear: [{ sw: 0, swT: 0, tw: 0, twPh: 0 }, { sw: 0, swT: 0, tw: 0, twPh: 0 }], earNext: 1 };
     function life(dt) {
       if (dt <= 0) return;
-      var walking = K.state === 'walk', sitting = K.state === 'sit';
+      var walking = K.state === 'walk' || K.state === 'chase', sitting = K.state === 'sit';
       L.ph = (L.ph + dt * (walking ? 0.62 : sitting ? 0.42 : 0.5)) % 1;
+      /* được vuốt: nghiêng đầu dụi vào tay, chậm rãi qua lại */
+      var nz = K.petting && !K.annoyedNow ? 1 : 0;
+      K.nuzzle += (nz - K.nuzzle) * (1 - Math.pow(0.03, dt));
+      if (K.nuzzle > 0.01) {
+        K.nzT = (K.nzT || 0) + dt;
+        var hbn = meta.headBone, oh = hbn * 7, hq = [mixed[oh], mixed[oh + 1], mixed[oh + 2], mixed[oh + 3]];
+        var heads = [hbn, BI['ear.L'], BI['ear.R']].filter(function (b) { return b !== undefined; });
+        turnBones(mixed, heads, posed(mixed, hbn, NECK_TOP), qmul(qaxis(qrot(hq, [0, 0, 1]), K.nuzzle * 0.2 * Math.sin(K.nzT * 1.7)), qaxis(qrot(hq, [1, 0, 0]), -K.nuzzle * (0.1 + 0.05 * Math.sin(K.nzT * 2.3)))));
+      }
       var w = L.ph < 0.4 ? sm(0, 0.4, L.ph) : 1 - sm(0.4, 1, L.ph);
       K.breath = (w - 0.35) * 0.011 * 0.8;
       var yr = L.yawP === null ? 0 : Math.atan2(Math.sin(K.yaw - L.yawP), Math.cos(K.yaw - L.yawP)) / dt; L.yawP = K.yaw;
       var lagT = Math.max(-0.9, Math.min(0.9, -yr * 0.35));
       L.lagV += ((lagT - L.lag) * 38 - L.lagV * 7) * dt; L.lag += L.lagV * dt;
-      if (Math.random() < dt * 0.15) { L.tipA = (0.5 + Math.random() * 0.5) * (Math.random() < 0.5 ? -1 : 1); L.tipPh = 0; }
+      if (Math.random() < dt * (K.annoyedNow ? 5 : HUNT[K.state] ? 0.9 : 0.15)) { L.tipA = (0.5 + Math.random() * 0.5) * (Math.random() < 0.5 ? -1 : 1); L.tipPh = 0; }
       L.tipPh += dt * 13; L.tipA *= Math.pow(0.06, dt);
       var tip = L.tipA * Math.sin(L.tipPh), up = [0, 1, 0];
       TAILB.forEach(function (b, i) {
@@ -275,26 +373,39 @@
       });
     }
     function pose(dt) {
-      var s = K.state, cl = data.clips[s === 'standup' ? 'sitdown' : s];
-      sampleClip(cl, nb, s === 'sitdown' || s === 'standup' ? K.k : K.u, cur);
+      var s = K.state, cl = data.clips[s === 'standup' ? 'sitdown' : s === 'chase' ? K.gait : s === 'stalk' || s === 'watch' ? 'crouch' : s];
+      sampleClip(cl, nb, s === 'sitdown' || s === 'standup' || s === 'pounce' || s === 'swat' ? K.k : K.u, cur);
       if (K.fade > 0) {
         K.fade = Math.max(0, K.fade - dt / 0.35);
         var f = K.fade * K.fade * (3 - 2 * K.fade);
         for (var b = 0; b < nb; b++) blendBone(cur, b * 7, prevPose, b * 7, f, mixed, b * 7);
       } else mixed.set(cur);
       life(dt);
-      var R0 = M(T(K.x, 0, K.z), RY(K.yaw));
+      var R0 = M(T(K.x, K.y, K.z), RY(K.yaw));
       var head = M(R0, boneMatrix(mixed, meta.headBone));
       K.r = { dq: toDQ(mixed, nb, dqArr), R0: R0, head: head, headPos: xf(head, meta.headPos) };
     }
 
     K.update = function (dt, t, w) {
       if (!K.placed) place(w);
+      K.cross = Math.max(0, K.cross - dt);
       if (dt > 0) think(Math.min(dt, 0.1), t, w);
+      if (K.state !== 'pounce') K.y = 0;
+      /* sau khi bé tự di chuyển (đi, phi, vồ) vẫn có thể lấn vào Mochi: trượt ra trước khi dựng dáng */
+      if (w.main && w.main.y < 0.5) {
+        var gm = gapTo(spheres(K.x, K.z, K.yaw, BODY, 1), spheres(w.main.x, w.main.z, w.main.yaw, MAIN_BODY, w.main.S));
+        if (gm.gap < 0.015) {
+          var sx = gm.dx * (0.015 - gm.gap), sz = gm.dz * (0.015 - gm.gap);
+          if (w.sdWorld(K.x + sx, K.z + sz, 0) > 0.2) { K.x += sx; K.z += sz; if (K.jump) { K.jump.x0 += sx; K.jump.x1 += sx; K.jump.z0 += sz; K.jump.z1 += sz; } }
+        }
+      }
       pose(Math.min(dt, 0.1));
-      if (pushOut(w) > 0.0005) {
+      var pushed = 0;
+      for (var it = 0; it < 3; it++) { var m_ = pushOut(w); if (m_ <= 0.0005) break; pushed += m_; }
+      if (pushed > 0.0005) {
         if (K.state === 'walk') { K.stuck += dt; if (K.stuck > 1.2) walkTo(w, farSpot(w, 1.6, 0.7)); }
-        pose(0);
+        if (K.state === 'pounce' && K.jump) { K.jump = null; K.y = 0; K.k = 0; say('swat'); }   /* nhảy mà đụng đồ thì dừng lại */
+        else if (K.state === 'chase') K.repath = Math.min(K.repath, 0.1);
       }
       /* mắt: liếc từng nhịp ngắn, chớp, thỉnh thoảng chớp chậm */
       K.sacT -= dt;
@@ -304,6 +415,14 @@
       var shut = 1 - C.blinkAt(t, 1.9), sl = t - K.slowT;
       if (sl >= 0 && sl < 1.4) shut = Math.max(shut, Math.sin(Math.PI * sl / 1.4));
       if (K.state === 'sit' && Math.random() < dt * 0.12 && sl > 3) K.slowT = t;
+      /* được vuốt thì mắt lim dim, bực thì nheo; đang săn thì mở to hết cỡ */
+      var restT = K.petting ? (K.annoyedNow ? 0.3 : 0.6) : 0;
+      K.restLid = (K.restLid || 0) + (restT - (K.restLid || 0)) * (1 - Math.pow(0.05, dt));
+      if (HUNT[K.state]) shut = Math.min(shut, 0.35);
+      shut = Math.max(shut, K.restLid);
+      K.purr = K.petting && !K.annoyedNow ? 0.8 : 0;
+      if (K.petting && !K.annoyedNow && Math.random() < dt * 0.25 && sl > 2.5) K.slowT = t;
+      if (K.petting && w.petAt) { K.gazeT = [0, 0.1]; }
       K.lid = Math.max(0, Math.min(1, shut));
       /* đồng tử theo ánh sáng; vừa được chạm thì mở to */
       K.excite = Math.max(0, K.excite - dt);
@@ -348,6 +467,13 @@
       return g;
     };
     /* chạm vào bé: quay mặt lại, chớp chậm */
+    /* trả false nếu bé đang bực, không cho vuốt */
+    K.petStart = function (t, brush) {
+      if (K.cross > 0) return false;
+      if (t - K.petEnd > 4) K.petT = 0;
+      K.petting = true; K.brushing = !!brush; return true;
+    };
+    K.petEndNow = function (t) { if (K.petting) { K.petting = false; K.annoyedNow = false; K.petEnd = t; if (K.state === 'sit') K.wait = Math.max(K.wait, 3); } };
     K.touched = function (t) { K.meowAt = t; K.excite = 2.5; K.slowT = t + 0.9; K.gazeT = [0, 0]; K.sacT = 2; if (K.state === 'walk') stop(2.5); else K.wait = Math.max(K.wait, 2.5); };
     K.force = function (what, w) {
       if (what === 'walk') walkTo(w, w.to || farSpot(w, 1.6, 0.6));

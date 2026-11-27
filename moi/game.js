@@ -720,7 +720,7 @@ function updateCat(dt,t){
   /* tail */
   st.tailT+=dt*cat.tailRate;st.tailSw+=(cat.tailAmp-st.tailSw)*(1-Math.pow(0.05,dt));var cu=cat.pose==='curl'?-1.6:(cat.pose==='sit'||cat.pose==='loaf')?0.6:0;st.tailCurl+=(cu-st.tailCurl)*(1-Math.pow(0.1,dt));
   lifeDetail(st,ex,dt,t);
-  purrLevel(Math.max(cat.purr,cat.petting?0.8:0));if(cat.purr>0.3||cat.petting)dexLater('grugru',3);
+  purrLevel(Math.max(cat.purr,cat.petting?0.8:0,cat2On()?cat2.purr:0));if(cat.purr>0.3||cat.petting)dexLater('grugru',3);
 }
 /* the small motions that make a cat look alive, all smoothed (no value ever jumps):
    breathing, pupils, lids, whiskers, sniffing, the lag of the tail and the flick of its tip */
@@ -824,13 +824,14 @@ function updWorld(dt,t){
   if(ENV.day>0.45&&t>nextBird&&birds.length<2){var dir=Math.random()<0.5?1:-1;birds.push({x:dir>0?WX0-4:WX1+4,y:rnd(WY0+0.6,WY1-0.4),z:-RZH-1.6,vx:dir*rnd(1.2,2.2),ph:rnd(0,6)});nextBird=t+rnd(9,25);}
   for(var b=birds.length-1;b>=0;b--){var B=birds[b];B.x+=B.vx*dt;B.y+=Math.sin(t*2+B.ph)*0.4*dt;if(Math.random()<dt*0.6&&B.x>WX0&&B.x<WX1)SND.bird();if(Math.abs(B.x-(WX0+WX1)/2)>7)birds.splice(b,1);}
   clouds.forEach(function(c){c.x+=dt*0.12;if(c.x>WX1+3)c.x=WX0-3});}
-function throwBall(p){var s=playerSpot();ball.on=true;ball.x=s[0];ball.z=s[1];ball.y=1.3;var dx=p[0]-s[0],dz=p[2]-s[1],l=Math.hypot(dx,dz)||1,T0=0.55;ball.vx=dx/T0*0.75;ball.vz=dz/T0*0.75;ball.vy=(0.24-1.3)/T0+0.5*GRAV*T0;SND.ball();
+var ballAt=-99;
+function throwBall(p){var s=playerSpot();ballAt=now();ball.on=true;ball.x=s[0];ball.z=s[1];ball.y=1.3;var dx=p[0]-s[0],dz=p[2]-s[1],l=Math.hypot(dx,dz)||1,T0=0.55;ball.vx=dx/T0*0.75;ball.vz=dz/T0*0.75;ball.vy=(0.24-1.3)/T0+0.5*GRAV*T0;SND.ball();
   if(catReady&&!cat.sleeping&&cat.y<0.3&&SV.stats.nl>15&&cat.act!=='eat')setScript('ball',bBall());}
 
 /* ======================= input ======================= */
 var ptrs={},drag=null,pinch=null,snapReq=false;
 cv.addEventListener('pointerdown',function(e){ac();try{cv.setPointerCapture(e.pointerId)}catch(_){}ptrs[e.pointerId]={x:e.clientX,y:e.clientY};var ids=Object.keys(ptrs);
-  if(ids.length===1){var m='orbit',hp=null;if(STUDIO.on){}else if((tool==='pet'||tool==='brush')&&(hp=hitCat(e.clientX,e.clientY)))m='pet';else if(tool==='wand')m='wand';else if(tool==='laser')m='laser';
+  if(ids.length===1){var m='orbit',hp=null;if(STUDIO.on){}else if((tool==='pet'||tool==='brush')&&(hp=hitCat(e.clientX,e.clientY)))m='pet';else if((tool==='pet'||tool==='brush')&&hitCat2(e.clientX,e.clientY)&&cat2.petStart(now(),tool==='brush'))m='pet2';else if(tool==='wand')m='wand';else if(tool==='laser')m='laser';
     drag={m:m,id:e.pointerId,sx:e.clientX,sy:e.clientY,x:e.clientX,y:e.clientY,t:now(),moved:false};
     if(m==='pet')startPet(hp);else if(m==='wand'){var p=floorPoint(e.clientX,e.clientY);if(p){var fresh=!lure.on;lure.on=true;lure.held=true;lure.caught=false;lure.tipT=[p[0],1.7,p[2]];if(fresh){lure.tip=v3(lure.tipT);lure.p=[p[0],0.06,p[2]];lure.v=[0,0,0];}}}
     else if(m==='laser'){var q=floorPoint(e.clientX,e.clientY);if(q){if(!laser.on)laser.startT=now();laser.on=true;laser.held=true;laser.p=[q[0],0.02,q[2]];}}}
@@ -840,10 +841,11 @@ cv.addEventListener('pointermove',function(e){var p=ptrs[e.pointerId];if(!p)retu
   if(!drag||drag.id!==e.pointerId)return;if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>8)drag.moved=true;
   if(drag.m==='orbit'){cam.yawT-=dx*0.008;cam.pitchT+=dy*0.005;}
   else if(drag.m==='pet'){var hp=hitCat(e.clientX,e.clientY);if(hp)cat.petP=hp;if(now()-heartT>0.14){heartT=now();heartAt(e.clientX,e.clientY,tool==='brush'?'✨':(cat.petT>9?'💢':'💗'))}}
+  else if(drag.m==='pet2'){if(cat2&&cat2.petting&&now()-heartT>0.14){heartT=now();heartAt(e.clientX,e.clientY,tool==='brush'?'✨':(cat2.petT>10?'💢':'💗'))}}
   else if(drag.m==='wand'){var q=floorPoint(e.clientX,e.clientY);if(q){lure.tipT=[q[0],1.7,q[2]];if(lure.caught&&len3(sub(lure.tipT,lure.tip))>0.6)lure.caught=false;}}
   else if(drag.m==='laser'){var r2=floorPoint(e.clientX,e.clientY);if(r2)laser.p=[r2[0],0.02,r2[2]];}});
 function laserJitter(t){if(laser.on&&laser.held){laser.p[0]+=Math.sin(t*23.1)*0.004+Math.sin(t*7.3)*0.003;laser.p[2]+=Math.cos(t*19.7)*0.004;}}
-function endDrag(){if(!drag)return;if(drag.m==='pet')endPet();if(drag.m==='wand'){lure.held=false;lure.until=now()+3;}if(drag.m==='laser'){laser.held=false;laser.until=now()+0.3;}}
+function endDrag(){if(!drag)return;if(drag.m==='pet')endPet();if(drag.m==='pet2'&&cat2)cat2.petEndNow(now());if(drag.m==='wand'){lure.held=false;lure.until=now()+3;}if(drag.m==='laser'){laser.held=false;laser.until=now()+0.3;}}
 function onUp(e){var p=ptrs[e.pointerId];delete ptrs[e.pointerId];if(Object.keys(ptrs).length<2)pinch=null;
   if(drag&&drag.id===e.pointerId){var tap=!drag.moved&&now()-drag.t<0.45;endDrag();if(tap&&e.type==='pointerup')onTap(e.clientX,e.clientY,drag.m);drag=null;}}
 cv.addEventListener('pointerup',onUp);cv.addEventListener('pointercancel',onUp);
@@ -875,11 +877,19 @@ function drawDynamic(D,shadow){if(!SV)return;var dr=shadow?function(g,m){E.drawD
     if(!shadow){dr(Gd.string,C.alignY([lp[0],lp[1]+0.06,lp[2]],sd,sl));var rd=nrm(sub(cam.eye,tp2));dr(Gd.rod,C.alignY(tp2,[rd[0]*0.6,1,rd[2]*0.6],2.6));}}}
 /* ======================= bé mèo thứ hai (dựng trong Blender, xem blendercat.js) ======================= */
 var cat2=null;
-if(window.BlenderCat)window.BlenderCat.load(E,'meo-blender.bin?v=2').then(function(k){cat2=k}).catch(function(err){console.error('[meo-blender] '+err.message)});
-function cat2World(){return {light:clamp((ENV?ENV.day*0.75+ENV.lampC[0]*0.06:0.6),0,1),sdWorld:sdWorld,sdGrad:sdGrad,navPath:navPath,randFloor:randFloor,main:catReady?{x:cat.x,y:cat.y+cat.hop,z:cat.z,yaw:cat.yaw,S:SC}:null}}
+if(window.BlenderCat)window.BlenderCat.load(E,'meo-blender.bin?v=3').then(function(k){cat2=k}).catch(function(err){console.error('[meo-blender] '+err.message)});
+/* món đồ chơi đang có trong phòng, cho bé Blender: cần câu, chấm laser, hoặc quả bóng vừa ném */
+function cat2Toy(){if(lure.on)return {kind:'wand',p:lure.p,caught:!!lure.caught};if(laser.on)return {kind:'laser',p:laser.p};
+  if(ball.on&&now()-ballAt<16)return {kind:'ball',p:[ball.x,ball.y,ball.z]};return null}
+function cat2Swat(kind,fx,fz){if(kind==='ball'){ball.vx+=fx*2.4+(Math.random()-0.5);ball.vz+=fz*2.4+(Math.random()-0.5);ball.vy=Math.max(ball.vy,1.6);SND.ball();}
+  if(SV)SV.stats.vui=Math.min(100,SV.stats.vui+1);}
+function cat2World(){return {toy:cat2Toy(),onSwat:cat2Swat,onAnnoyed:function(){SND.hiss();hint('Bé mèo cam bảo “đủ rồi đó!” 😾',3000)},light:clamp((ENV?ENV.day*0.75+ENV.lampC[0]*0.06:0.6),0,1),sdWorld:sdWorld,sdGrad:sdGrad,navPath:navPath,randFloor:randFloor,main:catReady?{x:cat.x,y:cat.y+cat.hop,z:cat.z,yaw:cat.yaw,S:SC}:null}}
 function cat2On(){return cat2&&catReady&&!STUDIO.on}
 function hitCat2(sx,sy){if(!cat2On()||!cat2.r)return false;var r=ray(sx,sy),s=cat2.spheres();
-  return raySphere(r,cat2.r.headPos,0.24)>0||s.some(function(b){return raySphere(r,[b[0],0.35,b[1]],b[2]+0.06)>0});}
+  if(raySphere(r,cat2.r.headPos,0.24)>0||s.some(function(b){return raySphere(r,[b[0],0.35,b[1]],b[2]+0.06)>0}))return true;
+  /* ngón tay to, bé thì nhỏ: chạm gần bé trên màn hình cũng tính */
+  var hs=toScreen(cat2.r.headPos),cs=toScreen([cat2.x,0.32,cat2.z]),rad=Math.max(52,Math.hypot(hs[0]-cs[0],hs[1]-cs[1])*1.4);
+  return Math.hypot(sx-cs[0],sy-cs[1])<rad||Math.hypot(sx-hs[0],sy-hs[1])<rad*0.8;}
 function render(t){
   var env=ENV,shOn=shadowOK&&Q.lvl>0&&env.sunI>0.2;
   /* the surface the cat rests on (floor, sill, box bottom); none while it is in the air */
