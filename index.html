@@ -82,6 +82,8 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .coat{border-radius:16px;padding:10px;background:#fff;box-shadow:0 4px 14px -8px rgba(74,53,64,.5);text-align:center;font-weight:800;font-size:13px;border:2px solid transparent}
 .coat.on{border-color:#ff8aa5;background:#fff3f5}
 .coat .sw{height:46px;border-radius:12px;margin-bottom:6px}
+/* short landscape phones: five per row, so all nine coats and the adopt button stay on screen */
+@media (max-height:560px){.coats{grid-template-columns:repeat(5,1fr);gap:6px;margin:6px 0 8px}.coat{padding:6px;font-size:11px;line-height:1.2}.coat .sw{height:24px;margin-bottom:4px}}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 input[type=text]{font:inherit;font-weight:800;font-size:16px;color:var(--ink);background:#fff;border:2px solid #ffd3dd;border-radius:12px;padding:9px 12px;outline:none;flex:1;min-width:160px}
 input[type=text]:focus{border-color:#ff8aa5}
@@ -241,9 +243,9 @@ body.studio #stats,body.studio #tb,body.studio #tr,body.studio #chip,body.studio
 <div id="rotate"><svg class="i"><use href="#i-phone"/></svg><div class="baloo" style="font-size:22px">Xoay ngang điện thoại nha</div><div style="color:#8a7280">Căn phòng của bé rộng lắm, màn ngang mới vừa đó 🐾</div></div>
 <div id="loading"><div class="paw">🐾</div><div id="loadMsg">Đang dọn phòng cho bé…</div></div>
 
-<script src="cat3d.js?v=25"></script>
-<script src="coats.js?v=25"></script>
-<script src="game.js?v=25"></script>
+<script src="cat3d.js?v=26"></script>
+<script src="coats.js?v=26"></script>
+<script src="game.js?v=26"></script>
 <script>
 if('serviceWorker' in navigator&&location.protocol!=='file:'){addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
 </script>

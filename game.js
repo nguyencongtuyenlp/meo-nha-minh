@@ -288,6 +288,7 @@ function floorPoint(sx,sy){var p=rayPlaneY(ray(sx,sy),0.05);if(!p)return null;p[
 /* ======================= the cat ======================= */
 var CAT=null,GC=null,POSE=null,SC=1,G=0,STAGE=-1,catReady=false;
 var CPX={loaf:{py:.155,pz:-.2,pitch:0.04,cp:0,fz:0,fG:0,frel:[0,-.085,.11],bz:0,bG:0,brel:[0,-.085,.13],tailUp:-0.35},
+  belly:{py:.215,pz:-.2,pitch:0,cp:0,fz:0,fG:0,frel:[0,-.16,.11],bz:0,bG:0,brel:[0,-.17,.05],tailUp:-0.15},
   curl:{py:.1,pz:-.2,pitch:0.03,cp:0.5,lat:1.5,fz:0,fG:0,frel:[0,-.065,.1],bz:0,bG:0,brel:[0,-.07,.1],tailUp:-0.55},
   side:{py:.165,pz:-.2,pitch:0,cp:0,fz:0,fG:0,frel:[0,-.2,.08],bz:0,bG:0,brel:[0,-.2,-.02],tailUp:-0.1},
   eat:{py:.28,pz:-.2,pitch:.2,cp:.12,fz:-.01,fG:1,frel:[0,-.24,.03],bz:.05,bG:1,brel:[0,-.24,0],tailUp:0.05},
@@ -304,14 +305,14 @@ function catHead(){return cat.r?cat.r.headPos:[cat.x,cat.y+0.6*SC,cat.z]}
 
 /* mesh loading: worker + IndexedDB cache */
 var worker=null,wq={},wid=0;
-try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=25');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
+try{if(location.protocol!=='file:'){worker=new Worker('worker.js?v=26');worker.onmessage=function(e){var q=wq[e.data.id];delete wq[e.data.id];if(q){if(e.data.error)q.rej(e.data.error);else q.res(e.data.cat)}};
   worker.onerror=function(){worker=null;for(var k in wq){var q=wq[k];delete wq[k];q.fallback()}}}}catch(e){worker=null}
 function buildCatAsync(coat,k,sh){return new Promise(function(res,rej){function local(){setTimeout(function(){try{res(window.buildPacked(coat,k,sh))}catch(e){rej(e)}},30)}
   if(worker){var id=++wid;wq[id]={res:res,rej:rej,fallback:local};worker.postMessage({id:id,coat:coat,k:k,shape:sh});}else local();})}
 var dbp=null;function db(){if(dbp)return dbp;dbp=new Promise(function(res){try{var r=indexedDB.open('meo-nha-mesh',1);r.onupgradeneeded=function(){r.result.createObjectStore('m')};r.onsuccess=function(){res(r.result)};r.onerror=function(){res(null)}}catch(e){res(null)}});return dbp}
 function idbGet(k){return db().then(function(d){return d?new Promise(function(res){try{var q=d.transaction('m').objectStore('m').get(k);q.onsuccess=function(){res(q.result||null)};q.onerror=function(){res(null)}}catch(e){res(null)}}):null})}
 function idbPut(k,v){db().then(function(d){if(d)try{d.transaction('m','readwrite').objectStore('m').put(v,k)}catch(e){}})}
-var MESHV='m21';
+var MESHV='m27';
 function curShape(){return SV&&SV.shape?SV.shape:null}
 function getCat(coat,k,sh){if(sh===undefined)sh=curShape();var key=MESHV+'-'+coat+'-'+k+'-'+window.shapeKey(sh);return idbGet(key).then(function(v){return v||buildCatAsync(coat,k,sh).then(function(c){idbPut(key,c);return c})})}
 function growG(){return clamp((Date.now()-SV.born)/(SV.grow*864e5),0,1)}
@@ -454,6 +455,20 @@ function collideCat(){var rb=catRB(),f=[Math.sin(cat.yaw),Math.cos(cat.yaw)],sp=
   for(var it=0;it<4;it++)for(var k=0;k<sp.length;k++){var px=cat.x+f[0]*sp[k],pz=cat.z+f[1]*sp[k],r=k===0?rb*0.75:rb,d=sdWorld(px,pz,cat.y);
     if(d<r){var g=sdGrad(px,pz,cat.y);cat.x+=g[0]*(r-d);cat.z+=g[1]*(r-d);var vn=f[0]*g[0]+f[1]*g[1];if(vn<0)cat.v*=1+vn*0.6;}}
   clampRoom();}
+/* second pass on the posed skin: the spine capsule alone lets head, paws and tail poke into furniture. Sample the real
+   outline and slide the whole cat out by the deepest overlap. Skipped in the air, and when the cat is deliberately
+   inside something (box, litter tray): its centre is then inside that solid. */
+var SKIN_GAP=0.03; /* room for the fur beyond the skin */
+function collideSkin(){
+  if(!cat.r||cat.poseObj||cat.y>0.25||sdWorld(cat.x,cat.z,cat.y)<0.05)return;
+  var pts=C.skinPoints(CAT,cat.r,Math.max(1,Math.floor(CAT.mesh.P.length/3/260))),px=0,pz=0,nx=0,nz=0;
+  for(var i=0;i<pts.length;i++){var p=pts[i],d=sdWorld(p[0],p[2],Math.max(0,p[1]));
+    if(d<SKIN_GAP){var g=sdGrad(p[0],p[2],Math.max(0,p[1])),a=g[0]*(SKIN_GAP-d),b=g[1]*(SKIN_GAP-d);
+      /* per direction keep the largest push, so opposite sides do not simply add up */
+      if(a>px)px=a;if(a<nx)nx=a;if(b>pz)pz=b;if(b<nz)nz=b;}}
+  if(px||nx||pz||nz){var mx=px+nx,mz=pz+nz;cat.x+=mx;cat.z+=mz;
+    if(feet)feet.forEach(function(f){f.p[0]+=mx;f.p[2]+=mz;f.from[0]+=mx;f.from[2]+=mz;});}
+}
 function clampRoom(){cat.x=clamp(cat.x,-RXH+0.3,RXH-0.3);cat.z=clamp(cat.z,-RZH+0.3,RZH-0.3);}
 /* path following: A* waypoints, string-pulled to the farthest one in clear line of sight */
 function pathDir(s,tg){var rb=catRB()+0.04,tn=now();
@@ -618,6 +633,17 @@ function bAttention(){var p=playerSpot(),steps=[{go:p,speed:function(){return WA
 function bRub(){var o=pick([OBJ.post,OBJ.lamp,[OBJ.table.c[0]-1.35,0,OBJ.table.c[2]+0.75]]),cl=Math.hypot(o[0],o[2])||1,n=[-o[0]/cl,-o[2]/cl],p=[n[1],-n[0]],off=0.42*SC+0.3,dir=Math.random()<0.5?1:-1,
   A=[o[0]+p[0]*1.1*dir+n[0]*off,o[2]+p[1]*1.1*dir+n[1]*off],B=[o[0]-p[0]*1.1*dir+n[0]*off,o[2]-p[1]*1.1*dir+n[1]*off],mv=[B[0]-A[0],B[1]-A[1]],side=(mv[0]*(-n[1])-mv[1]*(-n[0]))>0?1:-1;
   return [{go:A},{face:[B[0],0,B[1]]},{go:B,speed:function(){return WALK()*0.55},init:function(){dex('coxat')},tick:function(){cat.rollT=0.2*side;cat.ex='bliss';cat.tailUpO=1.0}}]}
+/* rolling onto the back, belly up, paws kneading the air, head turned to look at you */
+function bBelly(){return [{pose:'sit',dur:0.6},{pose:'side',roll:1.3,dur:1.1,tick:function(){cat.lookP=cam.eye}},
+  {pose:'belly',roll:2.75,dur:7,tick:function(k,dt,el){cat.ex=el%3.5>2.4?'blep':'sparkle';cat.hyT=0.35*Math.sin(el*0.9);cat.hpT=0.45;cat.tiltO=-0.35+0.18*Math.sin(el*1.3);
+    cat.tailAmp=0.5;cat.tailRate=2.4;var a=Math.sin(el*4.2),P=cat.st;P.frel[1]=-0.16+0.035*a;P.frel[2]=0.11-0.035*a;P.brel[1]=-0.17-0.025*a;}},
+  {pose:'side',roll:1.3,dur:0.9},{pose:'sit',dur:1,tick:function(){cat.lookP=cam.eye}}]}
+/* the head tilt: looks straight at you, cocks the head one way, holds, then the other */
+function bTilt(){return [{pose:'sit',dur:6.5,tick:function(k,dt,el){cat.lookP=cam.eye;cat.ex='sparkle';cat.tiltO=el<1?0:el<3.4?0.42:el<5.6?-0.36:0;
+  if(el>1.1&&el<1.14)mewNow('trill')}}]}
+/* tongue left out, as if forgotten, with a slow blink */
+function bBlep(){return [{pose:'sit',dur:1,tick:function(){cat.lookP=cam.eye}},{pose:'sit',dur:5,tick:function(k,dt,el){cat.lookP=cam.eye;cat.ex='blep';
+  if(el>2.6&&el<2.64)cat.slowBlink=now()}}]}
 function bPlaySolo(){var o=[bZoomies,bScratch];if(ball.on)o.push(bBall,bBall);if(G<0.5)o.push(bChaseTail,bChaseTail);return pick(o)()}
 
 /* ---------- decision making (utility AI) ---------- */
@@ -629,6 +655,8 @@ function decide(t){if(STUDIO.on){studioPlay(STUDIO.act);return}var s=SV.stats,o=
   a('groom',(100-s.sach)*0.8+(t-cat.lastAte<40?30:0),bGroom);a('play',(100-s.vui)*0.75+(G<0.4?10:0),bPlaySolo);a('scratch',13,bScratch);a('wander',20,bWander);a('idle',19,bIdle);
   if(sunPatch())a('sun',18+(100-s.nl)*0.25,bSun);if(ENV.day>0.5)a('window',15,bWindow);a('box',12,bBox);if(cup.st==='home')a('cup',7+(100-s.tt)*0.08,bKnockCup);
   a('attention',(100-s.tt)*0.3+(100-s.vui)*0.15,bAttention);a('rub',10,bRub);
+  if(cat.y<0.05&&sdWorld(cat.x,cat.z,0)>0.6*SC+0.3)a('belly',6+s.tt*0.08,bBelly); /* only with open floor all round */
+  a('tilt',9,bTilt);a('blep',7,bBlep);
   o.sort(function(x,y){return y[0]-x[0]});setScript(o[0][1],o[0][2]())}
 
 /* ---------- player actions ---------- */
@@ -656,7 +684,11 @@ function updateCat(dt,t){
   var lt=t-cat.landT;st.sq=lt<0.35?Math.sin(lt/0.35*PI)*0.16:st.sq*0.85;
   /* head */
   var hyT=cat.hyT,hpT=cat.hpT;if(cat.lookP&&cat.r){var h=cat.r.headPos,d=sub(cat.lookP,h),rel=angD(cat.yaw,Math.atan2(d[0],d[2]));hyT=clamp(rel,-0.85,0.85);hpT=clamp(Math.atan2(-d[1],Math.hypot(d[0],d[2]))*0.8+0.05,-0.6,0.8);}
-  var hk=1-Math.pow(0.004,dt);st.hy+=(hyT-st.hy)*hk;st.hp+=(hpT-st.hp)*hk;st.tilt+=((cat.tiltO!=null?cat.tiltO:cat.ex==='sparkle'||cat.ex==='bliss'?0.18*Math.sin(t*0.8):0.06*Math.sin(t*0.6))-st.tilt)*hk;
+  var hk=1-Math.pow(0.004,dt);st.hy+=(hyT-st.hy)*hk;st.hp+=(hpT-st.hp)*hk;
+  /* gaze: the eyes jump to the target first and the head follows; while idle they make small saccades */
+  if(t>(cat.sacNext||0)){cat.sacNext=t+rnd(0.5,2.4);cat.sac=cat.lookP?[rnd(-0.12,0.12),rnd(-0.08,0.08)]:[rnd(-0.55,0.55),rnd(-0.3,0.3)];}
+  if(!st.gaze)st.gaze=[0,0];var sac=cat.sac||[0,0],gxT=clamp((hyT-st.hy)*2.2+sac[0],-1,1),gyT=clamp(-(hpT-st.hp)*2.2+sac[1],-1,1),gk=1-Math.pow(1e-9,dt);
+  st.gaze[0]+=(gxT-st.gaze[0])*gk;st.gaze[1]+=(gyT-st.gaze[1])*gk;st.tilt+=((cat.tiltO!=null?cat.tiltO:cat.ex==='sparkle'||cat.ex==='bliss'?0.18*Math.sin(t*0.8):0.06*Math.sin(t*0.6))-st.tilt)*hk;
   /* paws */
   var pw=cat.ovW;st.ovLw+=((cat.ovL&&pw?pw:0)-st.ovLw)*(1-Math.pow(0.001,dt));st.ovRw+=((cat.ovR&&pw?pw:0)-st.ovRw)*(1-Math.pow(0.001,dt));if(cat.ovL)st.ovL=cat.ovL;if(cat.ovR)st.ovR=cat.ovR;
   if(!pw){cat.ovL=cat.ovL&&st.ovLw>0.02?cat.ovL:null;cat.ovR=cat.ovR&&st.ovRw>0.02?cat.ovR:null;}
@@ -794,6 +826,8 @@ function drawDynamic(D,shadow){if(!SV)return;var dr=shadow?function(g,m){E.drawD
     if(!shadow){dr(Gd.string,C.alignY([lp[0],lp[1]+0.06,lp[2]],sd,sl));var rd=nrm(sub(cam.eye,tp2));dr(Gd.rod,C.alignY(tp2,[rd[0]*0.6,1,rd[2]*0.6],2.6));}}}
 function render(t){
   var env=ENV,shOn=shadowOK&&Q.lvl>0&&env.sunI>0.2;
+  /* the surface the cat rests on (floor, sill, box bottom); none while it is in the air */
+  cat.st.floor=cat.poseObj?-100:cat.y;E.floorY=cat.st.floor;
   if(shOn){var c=[0,1.5,-0.5],L=env.L,ey=add(c,scl(L,26));LVP=mul(C.ortho(-11.5,11.5,-11.5,11.5,4,50),C.lookAt(ey,c,Math.abs(L[1])>0.98?[0,0,1]:[0,1,0]));
     if(E.shadowBegin(LVP)){E.drawD(Gw,I);for(var i=0;i<4;i++)E.drawD(Gwalls[i].m,I);drawDynamic(Gd,true);
       if(catReady){var r0=C.poseCat(CAT,cat.st,catM0(),t);E.drawSkinD(GC.skin,r0.dq,r0.R0);E.drawD(GC.head,r0.head);E.drawD(GC.chest,r0.chest);}E.shadowEnd();}}
@@ -805,7 +839,8 @@ function render(t){
   E.draw(Gd.bulb,T(env.lampP[0]-0.1,env.lampP[1]-0.15,env.lampP[2]),mix([0.95,0.92,0.88],[1,0.85,0.55],1-env.day).slice(0,3));
   var lk=env.lampC[0]/1.5;if(lk>0.05)E.draw(Gd.shade,T(OBJ.lamp[0],4.05,OBJ.lamp[2]),[0.35+0.9*lk,0.3+0.75*lk,0.25+0.55*lk]);
   drawDynamic(Gd,false);
-  if(catReady)cat.r=C.drawCat(E,GC,CAT,catM0(),cat.st,t);
+  if(catReady){for(var cs=0;cs<3;cs++){cat.r=C.poseCat(CAT,cat.st,catM0(),t);var bx=cat.x,bz=cat.z;collideSkin();if(bx===cat.x&&bz===cat.z)break;}
+    cat.r=C.drawCat(E,GC,CAT,catM0(),cat.st,t);}
   /* soft sprites */
   E.sprites([cam.V[0],cam.V[4],cam.V[8]],[cam.V[1],cam.V[5],cam.V[9]]);
   if(catReady){var sh=1-Math.min(0.6,cat.hop+Math.max(0,cat.y-0.25)*0.0),gy=cat.y>0.3?cat.y:0;E.sprite([cat.x,gy+0.015,cat.z-0.05*SC],[0.55*SC*sh+0.1,0.8*SC*sh+0.1],[0.25,0.15,0.2,0.3],1.6,false);}
@@ -837,7 +872,7 @@ function updHud(){if(!catReady||!cat.r){bub.classList.remove('on');return}var s=
 /* ======================= studio: turn the kitten round, replay any gesture slowly, change its shape ======================= */
 var STUDIO={on:false,speed:1,step:0,act:'sit',spin:false,c:[-0.4,0,0.9]};
 var GESTURES=[['stand','Đứng'],['sit','Ngồi'],['loaf','Nằm ổ bánh mì'],['curl','Ngủ cuộn tròn'],['side','Nằm nghiêng'],['groom','Liếm tay, rửa mặt'],
-  ['walk','Đi bộ'],['run','Chạy'],['jump','Nhảy'],['stretch','Vươn vai, ngáp'],['ball','Vồ bóng'],['feather','Đứng vờn lông vũ'],['knead','Nhào bột'],['meow','Kêu meo'],['tail','Đuổi đuôi']];
+  ['belly','Nằm ngửa đùa'],['tilt','Nghiêng đầu'],['blep','Thè lưỡi'],['walk','Đi bộ'],['run','Chạy'],['jump','Nhảy'],['stretch','Vươn vai, ngáp'],['ball','Vồ bóng'],['feather','Đứng vờn lông vũ'],['knead','Nhào bột'],['meow','Kêu meo'],['tail','Đuổi đuôi']];
 function ringSteps(spd){var c=STUDIO.c,o=[];for(var i=0;i<6;i++){var a=i/6*TAU;o.push({go:[c[0]+Math.cos(a)*1.7,c[2]+Math.sin(a)*1.3],speed:spd,tol:0.35});}return o}
 function studioSteps(n){var c=STUDIO.c;
   if(n==='stand')return [{pose:'stand',dur:5,tick:function(k,dt,el){cat.hyT=0.35*Math.sin(el*0.6);cat.tailAmp=0.3}}];
@@ -846,6 +881,9 @@ function studioSteps(n){var c=STUDIO.c;
   if(n==='curl')return [{pose:'curl',roll:0.32,dur:10,tick:sleepTick}];
   if(n==='side')return [{pose:'side',roll:1.3,dur:10,tick:sleepTick}];
   if(n==='groom')return bGroom();
+  if(n==='belly')return bBelly();
+  if(n==='tilt')return bTilt();
+  if(n==='blep')return bBlep();
   if(n==='walk')return ringSteps(WALK);
   if(n==='run')return ringSteps(RUN);
   if(n==='jump'){var J=function(){var f=fwd();return [cat.x+f[0]*1.5,0,cat.z+f[2]*1.5]};
@@ -854,7 +892,8 @@ function studioSteps(n){var c=STUDIO.c;
   if(n==='ball'){var f=fwd();ball.on=true;ball.x=cat.x+f[0]*1.6;ball.z=cat.z+f[2]*1.6;ball.y=0.24;ball.vx=ball.vz=ball.vy=0;return bBall()}
   if(n==='feather')return featherSteps();
   if(n==='knead')return [{pose:'stand',dur:5,tick:kneadTick}];
-  if(n==='meow')return [{pose:'sit',dur:3,tick:function(k,dt,el){cat.lookP=cam.eye;if(el<0.05)mewNow('');if(el>1.5&&el<1.55)mewNow('long')}}];
+  if(n==='meow')return [{pose:'sit',dur:3,tick:function(k,dt,el){cat.lookP=cam.eye;if(el<0.05)mewNow('');if(el>1.5&&el<1.55)mewNow('long');
+    if((el>0.05&&el<0.75)||(el>1.55&&el<2.65))cat.ex='meow';}}];
   if(n==='tail')return bChaseTail();
   return [{pose:'sit',dur:3}]}
 /* standing up on the hind legs to bat a feather dangling just above head height, both paws in turn */
